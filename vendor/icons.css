@@ -1,0 +1,24 @@
+/* Element UI 图标子集（本地字体，内网可用）— 由 element-ui.css 提取生成 */
+@font-face{font-family:element-icons;src:url(fonts/element-icons.woff) format("woff"),url(fonts/element-icons.ttf) format("truetype");font-weight:400;font-display:"auto";font-style:normal}
+[class*=" el-icon-"],[class^=el-icon-]{font-family:element-icons!important;speak:none;font-style:normal;font-weight:400;font-variant:normal;text-transform:none;line-height:1;vertical-align:baseline;display:inline-block;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.el-icon-search:before{content:"\e778"}
+.el-icon-document-checked:before{content:"\e786"}
+.el-icon-download:before{content:"\e77c"}
+.el-icon-magic-stick:before{content:"\e76a"}
+.el-icon-time:before{content:"\e71f"}
+.el-icon-close:before{content:"\e6db"}
+.el-icon-back:before{content:"\e6ea"}
+.el-icon-upload2:before{content:"\e77b"}
+.el-icon-refresh:before{content:"\e6d0"}
+.el-icon-delete:before{content:"\e6d7"}
+.el-icon-folder-opened:before{content:"\e784"}
+.el-icon-document:before{content:"\e785"}
+.el-icon-finished:before{content:"\e6cd"}
+.el-icon-data-analysis:before{content:"\e766"}
+.el-icon-document-copy:before{content:"\e787"}
+.el-icon-view:before{content:"\e6ce"}
+.el-icon-edit:before{content:"\e78c"}
+.el-icon-link:before{content:"\e737"}
+.el-icon-setting:before{content:"\e6ca"}
+.el-icon-plus:before{content:"\e6d9"}
+.el-icon-check:before{content:"\e6da"}

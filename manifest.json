@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "项目管理工具箱",
+  "version": "3.1.0",
+  "description": "项目工作台（文档检查 + 归档下载）、规模估算书合规检查、检查历史",
+  "key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAskrAOA8zCsGOiwpkYj8a\nDCiD7Y+cmYDjokXAI2Q59VT4SilJr0NbzWObisuuw5euNj87RQ7pTMdmvwDJS91O\nAic9G/VjJr+cxECog8JRAHU2LBtZqxBfvie5rokT9JKUWBW/ce3H9FEAm7XKdUSD\nFkk96fKEVK0K4UfBFPA/TkSvte3RrED7OD5RWb2ppI4z20ASHxV9PBSFLQkjO5ft\nu5d+mdMWuSTh2R3TE60Sqw3d631DogXM6uNTokaFc8PAFJjFWFxVuVf7wfY9E7IZ\n1ak94KxNnw5uDGOx7ykvuQHDSD9/pKXnaEs8rioPU9D02X8AwKZDivpMA68pdWmP\nUQIDAQAB\n-----END PUBLIC KEY-----",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "cookies",
+    "storage",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "http://ita.abc/*",
+    "http://dt.abc/*",
+    "http://localhost:8765/*",
+    "http://127.0.0.1:8765/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "workbench.html",
+        "workhours.html",
+        "estimation.html",
+        "history.html",
+        "vendor/icons.css",
+        "vendor/fonts/element-icons.woff",
+        "vendor/fonts/element-icons.ttf"
+      ],
+      "matches": ["http://ita.abc/*"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://ita.abc/*"],
+      "js": ["content.js"],
+      "css": ["vendor/icons.css", "content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FileChecker 工具箱",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

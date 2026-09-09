@@ -1,0 +1,138 @@
+/* ═══════════════════════════════════════════════════════════
+   项目管理工具 · 扩展页面统一页头（与插件 Logo / popup 同源）
+   引入方式：<link rel="stylesheet" href="common/page.css">
+   结构：
+   <header class="pg-header">
+     <span class="pg-mark">项</span>
+     <div class="pg-titles">
+       <div class="pg-name">页面名称</div>
+       <div class="pg-sub">项目管理工具 · 一句话说明</div>
+     </div>
+     <div class="pg-actions">…（页面专属控件）</div>
+   </header>
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --pg-green-deep: #1b5e20;
+  --pg-green: #2e7d32;
+  --pg-green-bright: #43a047;
+  --pg-green-soft: #a5d6a7;
+  --pg-bg: #e8f5e9;
+  --pg-panel: #f1f8f4;
+  --pg-text: #1b2e1f;
+  --pg-muted: #5a6b5c;
+  --pg-border: rgba(0, 0, 0, 0.08);
+  --pg-warn: #f9a825;
+  --pg-danger: #c62828;
+  --pg-radius: 14px;
+  --pg-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ── 页头：深林绿渐变横幅（圆角卡片式，呼应 popup 顶栏） ── */
+.pg-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--pg-green-deep), var(--pg-green));
+  color: #fff;
+  border-radius: var(--pg-radius);
+  box-shadow: 0 4px 16px rgba(27, 94, 32, 0.22);
+  overflow: hidden;
+}
+.pg-header::after {              /* 签名纹理：右上斜切光带（与 popup 同构） */
+  content: "";
+  position: absolute;
+  right: -36px;
+  top: -48px;
+  width: 150px;
+  height: 150px;
+  background: rgba(255, 255, 255, 0.07);
+  transform: rotate(28deg);
+  border-radius: 28px;
+  pointer-events: none;
+}
+
+/* Logo 徽标：与扩展图标一致（绿色渐变圆角矩形 + 白色「项」） */
+.pg-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #245c28, #2e7d32);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+
+/* 标题区 */
+.pg-titles { flex: 1; min-width: 0; }
+.pg-header .pg-name {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: #fff;
+}
+.pg-header .pg-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+}
+
+/* 右侧动作区（页面专属控件挂载点） */
+.pg-header .pg-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* 页头内白描边胶囊（状态/小按钮统一形态） */
+.pg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  color: #fff;
+  white-space: nowrap;
+}
+.pg-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c8d6c9;
+}
+.pg-pill .dot.online { background: #7ccb7f; box-shadow: 0 0 0 3px rgba(124, 203, 127, 0.25); }
+.pg-pill .dot.offline { background: #ffb4a8; }
+
+/* 页头内幽灵按钮（白色描边） */
+.pg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #fff;
+  font-size: 12.5px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.pg-btn:hover { background: rgba(255, 255, 255, 0.22); }
+.pg-btn.danger:hover { background: rgba(198, 40, 40, 0.55); border-color: rgba(255, 179, 168, 0.6); }

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工时填报检查</title>
+  <link rel="stylesheet" href="vendor/icons.css">
+  <link rel="stylesheet" href="common/page.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif;
+      background: #e8f5e9; color: #1b2e1f; min-height: 100vh;
+      display: flex; flex-direction: column; padding: 20px 28px;
+    }
+
+    .help-wrap { position: relative; margin-left: auto; display: inline-flex; align-items: center; }
+    .help-icon { width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; cursor: help; }
+    .help-tip { display: none; position: absolute; top: 30px; right: 0; width: 380px;
+      background: #fff; border: 1px solid #e0e6ee; border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 14px 16px; font-size: 13px;
+      color: #5a6b5c; line-height: 1.7; z-index: 30; text-align: left; user-select: text; }
+    .help-tip strong { color: #2e7d32; }
+    .help-tip ul { margin: 6px 0 0 18px; }
+    .help-wrap:hover .help-tip { display: block; }
+
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 11px 20px; background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit;
+      box-shadow: 0 2px 8px rgba(46,125,50,.25);
+    }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.ghost { background: #fff; color: #2e7d32; border: 1px solid #a5d6a7; box-shadow: none; }
+    .btn.ghost:hover { background: #e8f5e9; }
+    .toolbar select {
+      padding: 10px 12px; border: 1px solid #d5e3d7; border-radius: 8px;
+      font-size: 14px; font-family: inherit; background: #fff; max-width: 380px;
+    }
+    .lbl { font-size: 13px; color: #5a6b5c; }
+
+    .proj-meta { display: none; margin-bottom: 12px; padding: 12px 16px; background: #fff;
+      border-radius: 10px; font-size: 13px; color: #5a6b5c; gap: 18px; flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .proj-meta b { color: #1b2e1f; }
+    .proj-meta .rate { color: #2e7d32; font-weight: 700; }
+
+    .panel { background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+      margin-bottom: 14px; overflow: hidden; }
+    .panel-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+      border-bottom: 1px solid #f0f0f0; background: #fafafa; font-size: 13px; color: #5a6b5c; }
+    .panel-head .tip { margin-left: auto; font-size: 12px; color: #9aa89c; }
+
+    .list-head, .member-row {
+      display: grid;
+      grid-template-columns: 44px 1.2fr 1.6fr 1fr 1fr 0.9fr 0.9fr;
+      gap: 8px; align-items: center; padding: 10px 14px; font-size: 13px;
+    }
+    .list-head {
+      background: #e8f5e9; color: #2e7d32; font-weight: 600; font-size: 12.5px;
+      border-bottom: 1px solid #e8e8e8; position: sticky; top: 0; z-index: 1;
+    }
+    .list-head span, .member-row > span { text-align: center; }
+    .member-row { border-bottom: 1px solid #f5f5f5; }
+    .member-row:hover { background: #f1f8f4; }
+    .member-row input, .list-head input { width: 15px; height: 15px; cursor: pointer; }
+    .member-row .m-name { text-align: left; word-break: break-all; }
+    .member-row .m-mail { color: #5a6b5c; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+    .member-row .m-num { color: #5a6b5c; }
+    .rate-tag { display: inline-block; min-width: 56px; text-align: center; padding: 2px 8px;
+      border-radius: 4px; font-weight: 700; font-size: 12.5px; }
+    .rate-tag.pass { color: #2e7d32; background: #e8f5e9; }
+    .rate-tag.low { color: #c62828; background: #fff2f0; }
+    .rate-tag.over { color: #b8860b; background: #fffbe6; }
+    .st-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; }
+    .st-tag.pass { color: #2e7d32; background: #e8f5e9; border: 1px solid #a5d6a7; }
+    .st-tag.low { color: #c62828; background: #fff2f0; border: 1px solid #ffcdd2; }
+    .st-tag.over { color: #b8860b; background: #fffbe6; border: 1px solid #ffe58f; }
+    .list-empty { padding: 40px; text-align: center; color: #5a6b5c; }
+
+    .status-line { margin-bottom: 14px; padding: 12px 16px; background: #fff; border-radius: 8px;
+      font-size: 14px; color: #5a6b5c; display: none; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    .status-line.error { color: #c62828; }
+    .empty { text-align: center; padding: 60px 20px; color: #5a6b5c; background: #fff; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <header class="pg-header">
+    <span class="pg-mark">项</span>
+    <div class="pg-titles">
+      <div class="pg-name">工时填报检查</div>
+      <div class="pg-sub">项目管理工具箱 · 结项前成员工时填报与目标工时误差检查（ITA · 跨年合并）</div>
+    </div>
+    <div class="pg-actions">
+      <span class="pg-pill" id="svcPill"><span class="dot" id="svcDot"></span><span id="svcText">检查服务…</span></span>
+      <div class="help-wrap">
+        <span class="help-icon">?</span>
+        <div class="help-tip">
+          <strong>工时填报检查使用说明</strong>
+          <ul>
+            <li><b>口径</b>：目标=「计划」工时直加（人天）；已填报=「填报」工时 ÷8（小时→人天）；自动合并今年与去年数据。</li>
+            <li><b>误差线</b>：完成率在 100%±误差线内为达标；低于下限标红（未填满），高于上限标黄（超填也有审计风险）。</li>
+            <li><b>提醒</b>：默认勾选未填满成员，「复制邮箱」得分号分隔的收件人列表，「复制邮件文本」得提醒正文，粘贴到邮件即可。</li>
+            <li><b>前提</b>：需启动本地后端，且浏览器已登录 ita.abc。检查结果自动存入检查历史。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="loadBtn"><i class="el-icon-refresh"></i> 获取工时项目</button>
+    <select id="projSelect" disabled><option value="">请先获取工时项目列表</option></select>
+    <button class="btn" id="checkBtn" disabled><i class="el-icon-data-analysis"></i> 开始检查</button>
+    <span class="lbl">误差线</span>
+    <select id="toleranceSel">
+      <option value="3" selected>±3%</option>
+      <option value="5">±5%</option>
+    </select>
+  </div>
+
+  <div class="proj-meta" id="projMeta"></div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span>成员工时台账（按完成率升序）</span>
+      <span class="tip" id="tableTip"></span>
+    </div>
+    <div class="list-head">
+      <span><input type="checkbox" id="checkAll" title="全选/全不选"></span>
+      <span>姓名</span>
+      <span>邮箱</span>
+      <span>已填报（人天）</span>
+      <span>目标填报（人天）</span>
+      <span>完成率</span>
+      <span>状态</span>
+    </div>
+    <div id="memberTable" style="max-height:56vh;overflow-y:auto">
+      <div class="list-empty">① 点击「获取工时项目」→ ② 选择项目 → ③ 开始检查</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="copyMailBtn" disabled><i class="el-icon-document-copy"></i> 复制勾选邮箱</button>
+    <button class="btn ghost" id="copyTextBtn" disabled><i class="el-icon-edit"></i> 复制邮件文本</button>
+    <span class="lbl" id="pickInfo"></span>
+  </div>
+
+  <div class="status-line" id="statusLine"></div>
+
+  <script src="common/store.js"></script>
+  <script src="workhours.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "auto_check": true,
+  "auto_check_interval_minutes": 60,
+  "releases_api_url": "https://dt.abc/gtr/shizeyuan/FileChecker/releases",
+  "verify_checksum": true,
+  "backup_before_update": true,
+  "backup_keep_count": 3,
+  "frontend_target_path": "../frontend",
+  "restart_command": "start 项目管理工具后端.exe"
+}

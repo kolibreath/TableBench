@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>检查历史 - 项目管理工具箱</title>
+  <link rel="stylesheet" href="vendor/icons.css">
+  <link rel="stylesheet" href="common/page.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif;
+      background: #e8f5e9; color: #1b2e1f; min-height: 100vh; padding: 20px 28px;
+    }
+
+    .toolbar {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+      background: #fff; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 10px; padding: 10px 14px;
+    }
+    .toolbar select, .toolbar input {
+      padding: 8px 10px; border: 1px solid #d5e3d7; border-radius: 8px; font-size: 13px; font-family: inherit;
+    }
+    .toolbar input { width: 220px; }
+    .btn {
+      padding: 8px 16px; background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.ghost { background: #fff; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .btn.danger { background: #fff; color: #c62828; border: 1px solid #ef9a9a; }
+
+    .stats { display: flex; gap: 16px; margin-left: auto; font-size: 12px; color: #5a6b5c; }
+    .stats b { color: #1b2e1f; }
+    .proj-chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px;
+      background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 16px; font-size: 12.5px; color: #2e7d32; }
+    .proj-chip .chip-close { cursor: pointer; color: #5a6b5c; font-size: 13px; }
+    .proj-chip .chip-close:hover { color: #c62828; }
+
+    table.list { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05); font-size: 13px; }
+    table.list th, table.list td { padding: 11px 12px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); text-align: left; vertical-align: middle; }
+    table.list th { background: #f1f8f4; color: #5a6b5c; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+    table.list tr:hover td { background: #f1f8f4; }
+    .type-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
+    .type-est-ita { background: #fff8e1; color: #f9a825; border: 1px solid #ffe082; }
+    .type-est-manual { background: #e8f5e9; color: #43a047; border: 1px solid #a5d6a7; }
+    .type-doc-check { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .type-workhours { background: #f0f5ff; color: #2f54eb; border: 1px solid #adc6ff; }
+    .proj-name { font-weight: 600; }
+    .proj-sub { font-size: 12px; color: #5a6b5c; margin-top: 2px; }
+    .v-num { font-weight: 700; }
+    .v-must { color: #c62828; }
+    .v-suggest { color: #f9a825; }
+    .v-ai { color: #43a047; }
+    .v-zero { color: #2e7d32; }
+    .row-actions button { margin-right: 6px; }
+    .empty { text-align: center; padding: 60px 20px; color: #5a6b5c; background: #fff; border-radius: 10px; }
+    .source-tag { font-size: 12px; color: #5a6b5c; }
+
+    /* 详情抽屉 */
+    .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 50; }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 720px; max-width: 92vw; background: #fff;
+      z-index: 51; box-shadow: -8px 0 28px rgba(0,0,0,.15); display: flex; flex-direction: column;
+    }
+    .drawer-head {
+      display: flex; align-items: center; gap: 10px; padding: 16px 20px;
+      background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff; font-size: 15px; font-weight: 600;
+    }
+    .drawer-head .close { margin-left: auto; cursor: pointer; font-size: 18px; opacity: .9; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+    .detail-summary { display: flex; gap: 20px; padding: 12px 16px; background: #f1f8f4; border-radius: 10px; margin-bottom: 14px; font-size: 13px; }
+    .detail-summary .item b { font-size: 18px; color: #2e7d32; }
+    .detail-sec-title { font-size: 14px; font-weight: 600; margin: 14px 0 8px; }
+    table.vio { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    table.vio th, table.vio td { border: 1px solid rgba(0, 0, 0, 0.06); padding: 7px 9px; text-align: left; vertical-align: top; }
+    table.vio th { background: #f1f8f4; }
+    .badge-pass { color: #2e7d32; font-weight: 600; }
+    .badge-fail { color: #c62828; font-weight: 600; }
+    .badge-skip { color: #5a6b5c; font-weight: 600; }
+    .ai-reason { color: #43a047; font-size: 12px; margin-top: 3px; }
+  </style>
+</head>
+<body>
+  <header class="pg-header">
+    <span class="pg-mark">项</span>
+    <div class="pg-titles">
+      <div class="pg-name">检查历史</div>
+      <div class="pg-sub">项目管理工具箱 · 检查记录本地留痕（IndexedDB + 本地服务双写），可回溯与导出</div>
+    </div>
+    <div class="pg-actions">
+      <button class="pg-btn" id="refreshBtn"><i class="el-icon-refresh"></i>刷新</button>
+      <button class="pg-btn" id="exportBtn"><i class="el-icon-download"></i>导出 JSONL</button>
+      <button class="pg-btn danger" id="clearBtn"><i class="el-icon-delete"></i>清空历史</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <span class="proj-chip" id="projChip" style="display:none">
+      项目：<b id="projChipName"></b><span class="chip-close" id="projChipClose" title="清除项目过滤">✕</span>
+    </span>
+    <select id="typeFilter">
+      <option value="__ALL__">全部类型</option>
+      <option value="estimation">估算书合规检查</option>
+      <option value="doc_check">项目文档检查</option>
+      <option value="workhours">工时填报检查</option>
+    </select>
+    <select id="sourceFilter">
+      <option value="__ALL__">全部来源</option>
+      <option value="ita">后置（ITA）</option>
+      <option value="manual">前置（手动）</option>
+    </select>
+    <input id="keywordInput" placeholder="搜索项目名称 / 项目编号 / 文件名">
+    <button class="btn" id="searchBtn">筛选</button>
+    <div class="stats" id="statsBox"></div>
+  </div>
+
+  <div id="listArea"><div class="empty">加载中…</div></div>
+
+  <div class="drawer-mask" id="drawerMask" style="display:none"></div>
+  <div class="drawer" id="drawer" style="display:none">
+    <div class="drawer-head">
+      <span id="drawerTitle">检查详情</span>
+      <span class="close" id="drawerClose">✕</span>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+
+  <script src="common/store.js"></script>
+  <script src="history.js"></script>
+</body>
+</html>

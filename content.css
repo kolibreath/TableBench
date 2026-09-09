@@ -1,0 +1,496 @@
+/* 悬浮图标样式 */
+.abc-project-floating-icon {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #3a8ee6;
+  color: #fff;
+  font-size: 40px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 999999;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
+  user-select: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+.abc-project-floating-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.6);
+}
+.abc-project-floating-icon .icon-text {
+  line-height: 1;
+}
+
+/* 展开面板 */
+.abc-project-panel {
+  position: fixed;
+  bottom: 120px;
+  right: 24px;
+  width: 1100px;
+  max-height: calc(100vh - 150px);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 999998;
+  display: none;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.abc-project-panel.show {
+  display: flex;
+}
+.abc-project-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: linear-gradient(90deg, #409EFF, #3a8ee6);
+  color: #fff;
+  font-weight: 600;
+  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
+}
+.abc-project-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.abc-project-panel-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+.abc-project-panel-close {
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  opacity: 0.9;
+}
+.abc-project-panel-close:hover {
+  opacity: 1;
+}
+.abc-project-panel-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  max-height: calc(100vh - 180px);
+  scrollbar-width: thin;
+  scrollbar-color: #c0c0c0 #f0f0f0;
+}
+.abc-project-panel-body::-webkit-scrollbar {
+  width: 10px;
+}
+.abc-project-panel-body::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+.abc-project-panel-body::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border-radius: 5px;
+}
+.abc-project-panel-body::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+.abc-project-search-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.abc-project-search-row input {
+  flex: 1;
+  padding: 14px 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 18px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.abc-project-search-row input:focus {
+  outline: none;
+  border-color: #3a8ee6;
+}
+.abc-project-btn {
+  padding: 14px 28px;
+  background: #3a8ee6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 18px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.abc-project-btn:hover {
+  background: #40a9ff;
+}
+.abc-project-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+.abc-project-checkbtn {
+  background: #fff;
+  color: #409EFF;
+  border: 1px solid #c6e2ff;
+  box-shadow: none;
+  white-space: nowrap;
+}
+.abc-project-checkbtn:hover {
+  background: #ecf5ff;
+}
+.abc-project-totop {
+  position: sticky;
+  bottom: 10px;
+  display: block;
+  margin: 12px auto 4px;
+  padding: 8px 18px;
+  background: rgba(64, 158, 255, 0.12);
+  color: #409EFF;
+  border: 1px solid #c6e2ff;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+}
+.abc-project-totop:hover {
+  background: rgba(64, 158, 255, 0.2);
+}
+.abc-project-status {
+  text-align: center;
+  padding: 40px;
+  color: #909399;
+  font-size: 18px;
+}
+.abc-project-error {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #F56C6C;
+  padding: 16px;
+  border-radius: 6px;
+  font-size: 17px;
+  margin-bottom: 12px;
+}
+.abc-project-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+.abc-project-card-title {
+  font-size: 22px;
+  color: #3a8ee6;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.abc-project-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px 32px;
+}
+.abc-project-card-item {
+  display: flex;
+  flex-direction: column;
+}
+.abc-project-card-label {
+  font-size: 15px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+.abc-project-card-value {
+  font-size: 17px;
+  color: #303133;
+  word-break: break-all;
+}
+.abc-project-card-desc {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+  font-size: 16px;
+  color: #606266;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.abc-project-total {
+  font-size: 18px;
+  color: #606266;
+  margin-bottom: 16px;
+}
+/* 项目文档区域 */
+.abc-project-doc-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8e8e8;
+}
+.abc-project-doc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #ecf5ff;
+  color: #409EFF;
+  border: 1px solid #c6e2ff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.abc-project-doc-btn:hover {
+  background: #e0f0ff;
+}
+.abc-project-doc-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.abc-project-docs {
+  margin-top: 12px;
+  display: none;
+}
+.abc-project-docs-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 10px;
+}
+.abc-project-docs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.abc-project-docs-head .abc-project-docs-title {
+  margin-bottom: 0;
+}
+.abc-project-doc-search {
+  flex: 1;
+  min-width: 160px;
+  padding: 8px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.abc-project-doc-search:focus {
+  outline: none;
+  border-color: #3a8ee6;
+}
+.abc-project-download-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 15px;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.abc-project-download-all:hover {
+  background: #43a047;
+}
+.abc-project-docs-empty {
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 6px;
+  color: #909399;
+  font-size: 15px;
+  text-align: center;
+}
+.abc-project-doc-top {
+  margin-bottom: 4px;
+}
+.abc-project-doc-row {
+  padding: 12px 14px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.abc-project-doc-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  word-break: break-all;
+}
+.abc-project-doc-link {
+  color: #409EFF;
+  text-decoration: none;
+  cursor: pointer;
+}
+.abc-project-doc-link:hover {
+  text-decoration: underline;
+  color: #3a8ee6;
+}
+.abc-project-doc-icon {
+  font-size: 16px;
+}
+.abc-project-doc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  color: #909399;
+}
+.abc-project-doc-tag {
+  background: #ecf5ff;
+  color: #3a8ee6;
+  border: 1px solid #c6e2ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* ══════ 工具菜单：绿色台账风（与 popup 同源，令牌同功能点估算工具） ══════ */
+.abc-project-menu {
+  position: fixed;
+  bottom: 120px;
+  right: 24px;
+  width: 328px;
+  background: #e8f5e9;
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(27, 46, 31, 0.22);
+  z-index: 1000000;
+  display: none;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  box-sizing: border-box;
+  color: #1b2e1f;
+}
+.abc-project-menu.show { display: block; }
+
+.abc-project-menu-header {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px 12px;
+  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  color: #fff;
+  overflow: hidden;
+}
+.abc-project-menu-header::after {
+  content: "";
+  position: absolute; right: -30px; top: -38px;
+  width: 110px; height: 110px;
+  background: rgba(255, 255, 255, 0.07);
+  transform: rotate(28deg);
+  border-radius: 22px;
+  pointer-events: none;
+}
+.abc-project-menu-logo {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+}
+.abc-project-menu-name { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+
+.abc-project-menu-list { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.abc-project-menu-item {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 11px 11px 15px;
+  background: #f1f8f4;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  user-select: none;
+}
+.abc-project-menu-item::before {
+  content: "";
+  position: absolute; left: 0; top: 10px; bottom: 10px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #2e7d32, #43a047);
+  opacity: .85;
+}
+.abc-project-menu-item:hover {
+  transform: translateY(-1px);
+  border-color: #a5d6a7;
+  box-shadow: 0 4px 14px rgba(46, 125, 50, 0.16);
+}
+.abc-project-menu-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  color: #2e7d32;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+  transition: background .16s ease, color .16s ease;
+}
+.abc-project-menu-item:hover .abc-project-menu-icon { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.abc-project-menu-idx {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; font-weight: 600; color: #2e7d32;
+  width: 18px; flex-shrink: 0;
+}
+.abc-project-menu-info { flex: 1; min-width: 0; }
+.abc-project-menu-name {
+  display: block; font-size: 13.5px; font-weight: 600; color: #1b2e1f;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.abc-project-menu-desc {
+  display: block; font-size: 11.5px; color: #5a6b5c; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.abc-project-menu-arrow {
+  color: #a5d6a7; font-size: 14px; flex-shrink: 0;
+  transition: color .16s ease, transform .16s ease;
+}
+.abc-project-menu-item:hover .abc-project-menu-arrow { color: #2e7d32; transform: translateX(2px); }
+
+/* ══════ 文档区「合规检查」按钮（后置检查入口，绿色系） ══════ */
+.abc-project-estimation {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: #2e7d32; color: #fff;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-size: 15px; box-sizing: border-box;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.abc-project-estimation:hover { background: #43a047; }
+
+/* ══════ 文档区「项目工作台」按钮（深链入口，描边绿） ══════ */
+.abc-project-workbench {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: #fff; color: #2e7d32;
+  border: 1px solid #a5d6a7; border-radius: 6px;
+  cursor: pointer; font-size: 15px; box-sizing: border-box;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.abc-project-workbench:hover { background: #2e7d32; color: #fff; }

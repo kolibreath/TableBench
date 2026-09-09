@@ -1,0 +1,20 @@
+# ── 运行时产物与本地数据（不入库） ──
+__pycache__/
+*.pyc
+tools/backend/temp_uploads/
+tools/backend/history.db
+tools/backend/debug_rawtext_*.txt
+.DS_Store
+
+# ── 离线安装 wheel（27MB 二进制，内网机器单独维护） ──
+tools/backend/wheels/
+
+# ── 内网配置（仅本地保留；占位示例 AI_BASE_URLS.example.json 入库） ──
+tools/backend/AI_BASE_URLS.json
+
+# ── 构建 / 打包产物 ──
+dist/
+build/
+*.spec
+*.7z
+venv/

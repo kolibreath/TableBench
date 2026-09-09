@@ -1,0 +1,6 @@
+{
+  "说明": "AI 对比引擎地址配置。将本文件复制为 AI_BASE_URLS.json 并填入真实内网地址（该文件已被 .gitignore 排除，不会入库）。",
+  "urls": [
+    "http://aiml-pub.example/agent-api/tool-agent-1-xxxxxxxx"
+  ]
+}

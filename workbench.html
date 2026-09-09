@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目工作台</title>
+  <link rel="stylesheet" href="vendor/icons.css">
+  <link rel="stylesheet" href="common/page.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Roboto, sans-serif;
+      background: #e8f5e9; color: #1b2e1f; min-height: 100vh;
+      display: flex; flex-direction: column; padding: 20px 28px;
+    }
+
+    .help-wrap { position: relative; margin-left: auto; display: inline-flex; align-items: center; }
+    .help-icon { width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; cursor: help; }
+    .help-tip { display: none; position: absolute; top: 30px; right: 0; width: 380px;
+      background: #fff; border: 1px solid #e0e6ee; border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 14px 16px; font-size: 13px;
+      color: #5a6b5c; line-height: 1.7; z-index: 30; text-align: left; user-select: text; }
+    .help-tip strong { color: #2e7d32; }
+    .help-tip ul { margin: 6px 0 0 18px; }
+    .help-wrap:hover .help-tip { display: block; }
+
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 11px 20px; background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit;
+      box-shadow: 0 2px 8px rgba(46,125,50,.25);
+    }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.ghost { background: #fff; color: #2e7d32; border: 1px solid #a5d6a7; box-shadow: none; }
+    .btn.ghost:hover { background: #e8f5e9; }
+    #projInput {
+      flex: 1; max-width: 340px; padding: 11px 14px; border: 1px solid #d5e3d7;
+      border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .proj-info { font-size: 13px; color: #5a6b5c; }
+    .proj-info a { color: #2e7d32; cursor: pointer; font-weight: 600; text-decoration: none; }
+    .proj-info a:hover { text-decoration: underline; }
+
+    .panel {
+      background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+      margin-bottom: 14px; overflow: hidden;
+    }
+    .panel-title { padding: 12px 16px; font-weight: 600; background: #fafafa;
+      border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 8px; }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 14px; border-bottom: 1px solid #f0f0f0; background: #fafafa; flex-wrap: wrap;
+    }
+    .tabs-left { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tab {
+      padding: 6px 16px; background: #fff; color: #5a6b5c; border: 1px solid #e0e6ee;
+      border-radius: 6px; cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .tab:hover { border-color: #a5d6a7; }
+    .tab.active { background: linear-gradient(135deg, #2e7d32, #43a047); color: #fff; border-color: transparent; }
+    .search-box { display: flex; align-items: center; gap: 6px; }
+    .search-box input {
+      width: 200px; padding: 7px 12px; border: 1px solid #d9d9d9; border-radius: 6px;
+      font-size: 13px; font-family: inherit;
+    }
+    .search-box input:focus { outline: none; border-color: #43a047; }
+    .search-box .search-btn {
+      padding: 7px 16px; background: #43a047; color: #fff; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .search-box .search-btn:hover { background: #2e7d32; }
+
+    .proj-item { display: flex; align-items: center; gap: 10px; padding: 11px 16px;
+      border-bottom: 1px solid #f5f5f5; cursor: pointer; font-size: 14px; }
+    .proj-item:hover { background: #f1f8f4; }
+    .proj-item .sub { color: #999; font-size: 12px; }
+    .list-empty { padding: 40px; text-align: center; color: #5a6b5c; }
+
+    /* ── 文件台账：账脊式网格表 ── */
+    .table-scroll { overflow-y: auto; max-height: 56vh; }
+    .list-head, .file-row {
+      display: grid;
+      grid-template-columns: 40px minmax(220px, 2.2fr) 1.1fr 1.3fr 1fr 1.15fr 76px;
+      gap: 8px; align-items: center; padding: 10px 14px; font-size: 13px;
+    }
+    .list-head {
+      background: #e8f5e9; color: #2e7d32; font-weight: 600; font-size: 12.5px;
+      border-bottom: 1px solid #e8e8e8; position: sticky; top: 0; z-index: 1;
+    }
+    .list-head span, .file-row > span { text-align: center; }
+    .file-row { border-bottom: 1px solid #f5f5f5; }
+    .file-row:hover { background: #f1f8f4; }
+    .file-row input, .list-head input { width: 15px; height: 15px; cursor: pointer; }
+    .file-row .col-name { text-align: left; word-break: break-all; }
+    .file-row .col-name .up-time { display: block; font-size: 11px; color: #9aa89c; margin-top: 2px; }
+    .file-row .col-role { color: #5a6b5c; }
+    .file-row .col-role .role-tag { font-size: 12px; color: #2e7d32; background: #e8f5e9;
+      border: 1px solid #a5d6a7; padding: 1px 8px; border-radius: 4px; white-space: nowrap; }
+    .file-row .col-role .role-tag.unknown { color: #9aa89c; background: #f7f7f7; border-color: #e0e0e0; }
+    .file-row .col-product { color: #5a6b5c; word-break: break-all; }
+    .rec-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; font-size: 11px;
+      color: #f9a825; background: #fff7e6; border: 1px solid #ffd591; border-radius: 3px; cursor: pointer; }
+    .rec-badge:hover { background: #ffe58f; }
+    .file-row .col-stage { color: #43a047; cursor: pointer; }
+    .file-row .col-stage:hover { text-decoration: underline; }
+    .move-select { padding: 4px 6px; border: 1px solid #a5d6a7; border-radius: 5px;
+      font-size: 12px; font-family: inherit; color: #2e7d32; background: #fff; width: 100%; }
+    .file-row .col-check { cursor: default; }
+    .check-badge { display: inline-block; min-width: 62px; text-align: center; padding: 3px 8px;
+      border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .check-badge.idle { color: #9aa89c; background: #f7f7f7; }
+    .check-badge.running { color: #b8860b; background: #fffbe6; }
+    .check-badge.pass { color: #2e7d32; background: #e8f5e9; }
+    .check-badge.fail { color: #c62828; background: #fff2f0; cursor: pointer; }
+    .check-badge.error { color: #c62828; background: #fff2f0; }
+    .btn-mini {
+      padding: 5px 10px; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;
+      border-radius: 5px; cursor: pointer; font-size: 12px; font-family: inherit; white-space: nowrap;
+    }
+    .btn-mini:hover { background: #2e7d32; color: #fff; }
+    .btn-mini:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-mini:hover:not(:disabled) { background: #2e7d32; color: #fff; }
+
+    /* 检查明细展开行 */
+    .detail-row { display: none; grid-column: 1 / -1; padding: 4px 14px 12px 62px; }
+    .detail-row.open { display: block; }
+    .detail-row .result-item { display: flex; gap: 10px; align-items: flex-start;
+      padding: 7px 0; border-bottom: 1px dashed rgba(46,125,50,.14); font-size: 13px; }
+    .detail-row .result-item:last-child { border-bottom: none; }
+    .detail-row .rb { flex-shrink: 0; width: 58px; text-align: center; padding: 2px 0;
+      border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .detail-row .rb.pass { background: #e8f5e9; color: #2e7d32; }
+    .detail-row .rb.fail { background: #fff2f0; color: #c62828; }
+    .detail-row .rb.skip { background: #f5f5f5; color: #5a6b5c; }
+    .detail-row .rb.warn { background: #fffbe6; color: #d4a017; }
+    .detail-row .ri-body { flex: 1; color: #5a6b5c; line-height: 1.5; }
+    .detail-row .ri-body b { color: #1b2e1f; }
+    .detail-row .ri-body .example { display: block; font-size: 12px; color: #9aa89c; margin-top: 2px; }
+
+    /* 归档预览 */
+    .preview-wrap { margin-left: 8px; position: relative; }
+    .preview-box { display: none; position: absolute; right: 0; bottom: 40px; width: 460px; max-height: 320px;
+      overflow-y: auto; background: #fff; border: 1px solid #e0e6ee; border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 12px 16px; z-index: 25; font-size: 13px; }
+    .preview-box.show { display: block; }
+    .preview-box h5 { color: #2e7d32; font-size: 13px; margin: 8px 0 4px; }
+    .preview-box h5:first-child { margin-top: 0; }
+    .preview-box .pf { color: #5a6b5c; padding: 2px 0 2px 14px; word-break: break-all; }
+
+    .status-line { margin-bottom: 14px; padding: 12px 16px; background: #fff; border-radius: 8px;
+      font-size: 14px; color: #5a6b5c; display: none; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
+    .status-line.error { color: #c62828; }
+
+    .summary { margin-bottom: 14px; padding: 14px 18px; background: #fff; border-radius: 10px;
+      display: flex; gap: 24px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+    .summary .item { display: flex; flex-direction: column; }
+    .summary .num { font-size: 26px; font-weight: 700; color: #2e7d32; }
+    .summary .num.bad { color: #c62828; }
+    .summary .label { font-size: 12px; color: #5a6b5c; }
+    .summary-hide { text-align: right; font-size: 12px; color: #9aa89c; cursor: pointer; margin: -8px 0 14px; }
+    .summary-hide:hover { color: #2e7d32; }
+    .empty { text-align: center; padding: 60px 20px; color: #5a6b5c; background: #fff; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <header class="pg-header">
+    <span class="pg-mark">项</span>
+    <div class="pg-titles">
+      <div class="pg-name">项目工作台</div>
+      <div class="pg-sub">项目管理工具箱 · 选定项目后一次完成文档自查与按产生阶段归档下载</div>
+    </div>
+    <div class="pg-actions">
+      <span class="pg-pill" id="svcPill"><span class="dot" id="svcDot"></span><span id="svcText">检查服务…</span></span>
+      <div class="help-wrap">
+        <span class="help-icon">?</span>
+        <div class="help-tip">
+          <strong>项目工作台使用说明</strong>
+          <ul>
+            <li><b>① 查项目</b>：输入 ITA 项目名称，点击选择。也可从 ita.abc 页面的「项目工作台 / 归档下载」直接带项目进入。</li>
+            <li><b>② 文件台账</b>：项目文档列表，自动识别文档类型并按《武研项目文档入库清单》匹配归档阶段（相似度≥60%，可点击「归档阶段」手动调整，橙色「推荐」一键采纳）。</li>
+            <li><b>③ 两类动作</b>：「检查勾选文档」调用本地后端自查业务需求书 / 工作产品清单 / 系统设计说明书；「归档下载勾选文件」按归档阶段建文件夹落盘，重名自动加上传时间区分。</li>
+            <li><b>检查前</b>：需启动本地后端（「安装后端.bat」或双击「项目管理工具后端.exe」）。检查结果自动存入检查历史。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" id="projInput" placeholder="请输入 ITA 项目名称">
+    <button class="btn" id="searchBtn"><i class="el-icon-search"></i> 查询项目</button>
+    <button class="btn" id="checkBtn" disabled><i class="el-icon-document-checked"></i> 检查勾选文档</button>
+    <button class="btn" id="downloadBtn" disabled><i class="el-icon-folder-opened"></i> 归档下载勾选文件</button>
+    <span class="proj-info" id="projInfo"></span>
+    <span class="preview-wrap">
+      <button class="btn ghost" id="previewBtn" disabled><i class="el-icon-view"></i> 归档预览</button>
+      <div class="preview-box" id="previewBox"></div>
+    </span>
+  </div>
+
+  <div id="projList" class="panel" style="display:none">
+    <div class="panel-title">ITA 项目（点击选择）</div>
+    <div id="projRows"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div class="tabs-left" id="tabsLeft">
+        <button class="tab active" data-filter="all">全部</button>
+      </div>
+      <div class="search-box">
+        <input type="text" id="fileSearchInput" placeholder="搜索文件名称 / 类型">
+        <button class="search-btn" id="fileSearchBtn">查询</button>
+      </div>
+    </div>
+    <div class="list-head">
+      <span><input type="checkbox" id="checkAll" title="全选/全不选"></span>
+      <span style="text-align:left">文件名称</span>
+      <span>文档类型</span>
+      <span>工作产品</span>
+      <span>归档阶段</span>
+      <span>检查状态</span>
+      <span>操作</span>
+    </div>
+    <div class="table-scroll" id="fileTable">
+      <div class="list-empty">① 请先查询并选择 ITA 项目，文件台账将在此呈现</div>
+    </div>
+  </div>
+
+  <div class="status-line" id="statusLine"></div>
+  <div id="resultArea"></div>
+
+  <script src="common/store.js"></script>
+  <script src="workbench.js"></script>
+</body>
+</html>

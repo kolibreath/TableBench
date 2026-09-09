@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="zh-Hans">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>项目规模估算书合规检查工具</title>
+  <link rel="stylesheet" href="./vendor/element-ui/theme-chalk/index.css" />
+  <link rel="stylesheet" href="./estimation.css" />
+</head>
+
+<body>
+  <div id="app" class="app" v-cloak>
+    <el-container>
+      <el-header class="app-header" height="64px">
+        <div class="app-header__left">
+          <div class="app-header__title-row">
+            <span class="pg-mark app-mark">项</span>
+            <span class="app-header__title">项目规模估算书合规检查工具</span>
+            <el-popover placement="bottom-start" width="360" trigger="click">
+              <div slot="reference" class="app-header__version-tag" :class="{ 'app-header__version-tag--update': updateAvailable }" @click.stop="checkForUpdate()" title="点击检查更新">
+                <span class="app-header__version-label">v{{ currentVersion || '2.1.0.1' }}</span>
+                <span v-if="updateAvailable" class="app-header__version-dot" title="发现新版本"></span>
+                <i class="el-icon-arrow-down app-header__version-icon"></i>
+              </div>
+              <div class="app-header__changelog">
+                <div class="changelog-title">版本更新说明</div>
+                <div class="changelog-item">
+                  <span class="changelog-version">v2.1.0.1</span>
+                  <ul class="changelog-list">
+                    <li>🎨 背景动画重构：Canvas + OffscreenCanvas Worker 独立线程渲染，SSE 高负载时动画零卡顿；支持旧浏览器自动回退主线程模式</li>
+                    <li>🔧 修复 AI 多分块结果合并：分块 >100 条时后续分块结果不再覆盖前序，累积合并后完整展示</li>
+                    <li>🔧 修复 inBoth 去重逻辑：同章节不同功能点的多行数据全部保留，不再错误丢弃</li>
+                    <li>🔧 修复批次名映射：支持"批次N"格式识别，多批次场景下 AI 缓存匹配不再失败</li>
+                    <li>✨ AI 节点异常检测：SSE 返回异常时收集 node_id/node_title/exception，比对页签红色卡片展示，错误通知提醒</li>
+                    <li>📝 摘要区文案优化：移除"50%"技术阈值描述，改为"AI检测存在不匹配风险"/"均已通过AI检测"</li>
+                    <li>📝 结果摘要新增审核统计：展示审核总数、匹配/不匹配数量、多估/漏估明细</li>
+                    <li>📝 不匹配批次列表改为换行展示，移除低置信度表格，标签右上角数字改为审核功能点总数</li>
+                    <li>🎨 色调切换优化：冷暖色调渐变过渡（逐帧刷新），消除瞬间切换的卡顿感</li>
+                    <li>⚡ SSE 日志累积优化：数组 push + 最终 join 替代 O(n²) 字符串拼接</li>
+                    <li>⚡ 圆角矩形 Canvas polyfill：兼容旧版浏览器 roundRect API</li>
+                    <li>🔧 新增全局控制台开关 DEBUG_LOG，默认关闭，按需开启排查问题</li>
+                  </ul>
+                </div>
+              </div>
+            </el-popover>
+          </div>
+        </div>
+        <div class="app-header__right">
+          <div v-if="aiCheckBanner.text" class="ai-check-banner" :class="'ai-check-banner--' + aiCheckBanner.type">
+            {{ aiCheckBanner.text }}
+          </div>
+          <el-popover placement="bottom-end" width="380" trigger="click" v-model="aiConfigPopVisible">
+            <div slot="reference" class="header-config-btn">
+              <i class="el-icon-setting"></i>
+              <span>配置</span>
+              <span class="config-dot" v-if="aiConfigStatus === 'none'"></span>
+            </div>
+          <div class="config-popover">
+            <div class="config-popover__title">AI 大模型 API 配置</div>
+            <el-input size="small" placeholder="请输入大模型API地址" v-model="state.aiApiUrl"
+              class="config-popover__input"></el-input>
+            <div class="config-popover__actions">
+              <el-button size="small" type="primary" @click="testAiConnection"
+                :disabled="!state.aiApiUrl">测试连接</el-button>
+              <el-button size="small" @click="saveAiUrl" :disabled="!state.aiApiUrl">保存配置</el-button>
+              <span class="ai-config__status" :class="aiUrlStatusClass">{{ aiUrlStatusLabel }}</span>
+            </div>
+            <div class="config-popover__help">
+              <el-button type="text" icon="el-icon-question"
+                @click="showAiHelp = true; aiConfigPopVisible = false">功能说明</el-button>
+            </div>
+          </div>
+        </el-popover>
+      </div>
+      </el-header>
+
+
+
+      <el-main class="app-main">
+        <el-steps :active="currentStep" finish-status="success" simple style="margin-top: 20px" class="flow-steps">
+          <el-step title="上传规模估算书" description="上传 xlsx/et 格式文件"></el-step>
+          <el-step title="上传需求文档" description="按批次上传需求说明书"></el-step>
+          <el-step title="执行检查" description="运行规则检查与文档比对"></el-step>
+        </el-steps>
+
+        <div class="flow-cards">
+
+          <el-card class="flow-card flow-card--narrow" shadow="hover">
+            <div slot="header" class="flow-card__header">
+              <span class="flow-card__step">1</span>
+              <span>上传规模估算书</span>
+              <el-tag v-if="state.bookFileName" size="small" type="success">已上传</el-tag>
+            </div>
+            <div class="book-mode-switch">
+              <button type="button" :class="['book-mode-btn', itaMode === 'manual' ? 'active' : '']"
+                @click="itaMode = 'manual'">手动上传</button>
+              <button type="button" :class="['book-mode-btn', itaMode === 'ita' ? 'active' : '']"
+                @click="itaMode = 'ita'">从 ITA 导入</button>
+            </div>
+
+            <div v-show="itaMode === 'manual'" class="upload-zone"
+              :class="{'drag-over': dragOver, 'upload-zone--disabled': uploadLocked}"
+              @click.stop="!uploadLocked && openBookPicker()" @dragover.prevent="!uploadLocked && (dragOver=true)"
+              @dragleave="dragOver=false" @drop.prevent="!uploadLocked && onDropFile($event)">
+              <input ref="bookFile" type="file" accept=".xlsx,.et" class="upload-input" @change="onBookFileSelected" />
+              <template v-if="state.bookFileName">
+                <i class="el-icon-upload upload-zone__icon"></i>
+                <span class="upload-text">{{ state.bookFileName }}</span>
+                <span class="upload-hint">点击或拖拽更换文件</span>
+                <el-button class="upload-zone__remove" size="mini" type="text" @click.stop="removeBookFile" icon="el-icon-close">移除</el-button>
+              </template>
+              <template v-else>
+                <i class="el-icon-upload upload-zone__icon"></i>
+                <span class="upload-text">点击选择或拖拽规模估算书</span>
+                <span class="upload-hint">支持 .xlsx、.et</span>
+              </template>
+            </div>
+
+            <div v-show="itaMode === 'ita'" class="ita-inline">
+              <div class="ita-inline__search">
+                <el-input v-model="itaSearchName" placeholder="搜索 ITA 项目名称" size="small"
+                  @keyup.enter.native="itaSearch"></el-input>
+                <el-button type="primary" size="small" :loading="itaSearching" @click="itaSearch">搜索</el-button>
+              </div>
+              <div v-if="itaSearchLoaded && itaSearchResults.length && !itaPayload" class="ita-results ita-results--inline">
+                <div v-for="p in itaSearchResults" :key="p.prjid" class="ita-result" @click="itaPickProject(p.prjid)">
+                  <strong>{{ p.projname || '未命名项目' }}</strong>
+                  <span class="ita-result__meta">{{ p.projectno || '-' }} · {{ p.projtype || '-' }}</span>
+                </div>
+              </div>
+              <template v-if="itaPayload">
+                <div class="ita-project">
+                  <span>已选：<strong>{{ itaPayload.projname }}</strong></span>
+                  <el-button size="mini" :disabled="itaRunning" @click="itaClearPayload">重选</el-button>
+                </div>
+                <table class="ita-table">
+                  <thead>
+                    <tr>
+                      <th>文件名</th>
+                      <th style="width:86px">角色</th>
+                      <th style="width:118px">批次</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="f in itaPayload.files" :key="f.idFile || f.name">
+                      <td class="ita-name">{{ f.name }}</td>
+                      <td>
+                        <select v-model="f.role" :disabled="itaRunning" class="ita-select">
+                          <option value="estimation">估算书</option>
+                          <option value="requirement">需求书</option>
+                          <option value="unknown">忽略</option>
+                        </select>
+                      </td>
+                      <td>
+                        <select v-if="f.role === 'requirement' && state.selectedRuleVersion === 'v2.0.16'"
+                          v-model="f.batchName" :disabled="itaRunning" class="ita-select">
+                          <option value="">（自动）</option>
+                          <option v-for="b in itaBatchOptions" :key="'b' + b" :value="b">{{ b }}</option>
+                          <option v-if="f.batchName && itaBatchOptions.indexOf(f.batchName) < 0" :value="f.batchName">{{ f.batchName }}</option>
+                        </select>
+                        <span v-else class="ita-none">—</span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="ita-actions">
+                  <el-button type="primary" size="small" :loading="itaRunning" @click="itaLoad">下载并加载到检查流程</el-button>
+                  <span v-if="itaProgress" class="ita-progress">{{ itaProgress }}</span>
+                </div>
+                <div class="ita-inline__hint">需求文档将一并加载到第 2 步，加载完成后在第 3 步执行检查</div>
+              </template>
+            </div>
+          </el-card>
+
+          <el-card class="flow-card flow-card--wide" :class="{'flow-card--locked': currentStep < 1}" shadow="hover">
+            <div v-if="currentStep < 1" class="flow-card__overlay">
+              <div class="flow-card__overlay-icon">①</div>
+              <div class="flow-card__overlay-text">请先完成「上传规模估算书」</div>
+            </div>
+            <div slot="header" class="flow-card__header">
+              <span class="flow-card__step">2</span>
+              <span>上传需求文档</span>
+              <el-tag v-if="state.requireDocs && state.requireDocs.length" size="small" type="success">{{
+                state.requireDocs.length }} 个文档</el-tag>
+            </div>
+            <div class="flow-card__rule-ver">
+              <span class="flow-card__label">检查规则版本</span>
+              <el-radio-group v-model="state.selectedRuleVersion" size="small">
+                <el-radio-button label="v2.0.16">v2.0.16</el-radio-button>
+                <el-radio-button label="v2.0.15">v2.0.15</el-radio-button>
+              </el-radio-group>
+            </div>
+
+            <template v-if="state.selectedRuleVersion === 'v2.0.16'">
+              <el-button type="primary" size="small" icon="el-icon-plus" @click="openDebugDialog"
+              style="margin-bottom: 12px;">需求上传</el-button>
+              <span style="font-size: 12px; color: var(--muted); margin-left: 8px;">支持 .wps、.docx</span>
+            <el-input-number v-model="startBatchNumber" :min="1" :max="999" size="small"
+              style="width: 130px; margin-bottom: 12px; margin-left: 8px;" label="起始批次号"></el-input-number>
+            <el-popover placement="bottom" trigger="hover" width="260">
+              <div slot="reference" class="help-btn">?</div>
+              <div style="font-size: 13px; line-height: 1.8;">
+                <p>① 默认批次从"第一批"开始</p>
+                <p>② 支持用户通过输入框修改初始默认批次</p>
+                <p>③ 用户可以通过拖拽的方式调整批次顺序</p>
+              </div>
+            </el-popover>
+            <template v-if="state.requireDocs && state.requireDocs.length">
+              <div class="doc-tag-list" ref="docTagList">
+                <div class="doc-tag-item" v-for="(doc, idx) in state.requireDocs" :key="doc.fileName || doc.batchName">
+                  <span class="doc-tag-drag-handle">⠿</span>
+                  <el-tag closable size="small" type="info" @close="removeBatchDoc(doc.batchName)"
+                    :title="(doc.batchName || formatBatchIndex(idx)) + '：' + doc.fileName">
+                    <span class="doc-tag-label">{{ doc.batchName || formatBatchIndex(idx) }}：</span>
+                    <span class="doc-tag-filename">{{ doc.fileName }}</span>
+                  </el-tag>
+                </div>
+              </div>
+              <!-- 目录与正文一致性警告 -->
+              <template v-if="state.tocConsistencyMap && Object.keys(state.tocConsistencyMap).length">
+                <el-alert v-for="(consistency, batchName) in state.tocConsistencyMap" :key="batchName"
+                  type="error" :closable="false" show-icon class="toc-consistency-alert" style="margin-top: 12px;">
+                  <template slot="title">
+                    <div>需求文档 <strong>{{ batchName }}</strong> 目录与正文不一致：</div>
+                    <div style="margin-top: 6px;">
+                      缺失 {{ consistency.missing.length }} 个小节的正文内容：
+                      <span v-for="(key, i) in consistency.missing" :key="key">
+                        {{ key }}. {{ consistency.missing_titles[key] }}<span v-if="i < consistency.missing.length - 1">、</span>
+                      </span>
+                    </div>
+                    <div style="margin-top: 4px; font-size: 12px; color: #c62828;">
+                      提示：可通过在 Word/WPS 中右键点击目录，选择"<strong style="color:#b71c1c;">更新域</strong>"来确保目录内容与正文内容中的章节标题一致。
+                    </div>
+                  </template>
+                </el-alert>
+              </template>
+            </template>
+            <el-alert v-else title="暂无批次需求文档" type="info" :closable="false" show-icon></el-alert>
+            </template>
+            <template v-if="state.selectedRuleVersion !== 'v2.0.16'">
+              <div class="upload-zone"
+                :class="{'drag-over': requireDragOver, 'upload-zone--disabled': requireUploadLocked}"
+                @click.stop="!requireUploadLocked && openRequirePicker()"
+                @dragover.prevent="!requireUploadLocked && (requireDragOver=true)" @dragleave="requireDragOver=false"
+                @drop.prevent="!requireUploadLocked && onDropRequireFile($event)">
+                <input ref="requireFile" type="file" accept=".docx,.wps" class="upload-input"
+                  @change="onRequireFileSelected" />
+                <i class="el-icon-upload upload-zone__icon"></i>
+                <span class="upload-text">点击选择或拖拽需求说明书（可多选）</span>
+                <span class="upload-hint">仅支持 .docx / .wps 格式</span>
+              </div>
+              <div v-if="state.requireDocs && state.requireDocs.length" class="doc-tag-list">
+                <el-tag v-for="doc in state.requireDocs" :key="doc.fileName" closable size="small" type="info"
+                  @close="removeRequireDoc(doc.fileName)" :title="doc.fileName">
+                  <span class="doc-tag-filename" style="max-width:200px;">{{ doc.fileName }}</span>
+                </el-tag>
+              </div>
+              <el-alert v-else title="未选择文件" type="info" :closable="false" show-icon></el-alert>
+            </template>
+          </el-card>
+
+          <el-card class="flow-card" :class="{'flow-card--locked': currentStep < 2}" shadow="hover">
+            <div v-if="currentStep < 2" class="flow-card__overlay">
+              <div class="flow-card__overlay-icon">②</div>
+              <div class="flow-card__overlay-text">请先完成「上传需求文档」</div>
+            </div>
+            <div slot="header" class="flow-card__header">
+              <span class="flow-card__step">3</span>
+              <span>执行检查</span>
+            </div>
+            <div class="flow-card__actions">
+              <el-button type="primary" :disabled="!canRun || statusKind === 'loading'" :loading="statusKind === 'loading'" @click="onRunChecks">
+                {{ statusKind === 'loading' ? '检查中…' : '运行检查' }}
+              </el-button>
+              <el-tooltip content="清除所有上传文件与检查结果，恢复初始状态" placement="top">
+                <el-button class="btn-reset" type="text" @click="resetAll" icon="el-icon-refresh">重置全部</el-button>
+              </el-tooltip>
+            </div>
+
+            <el-alert v-if="aiConfigStatus !== 'ok'" :title="aiConfigTip"
+              :type="aiConfigStatus === 'none' ? 'info' : (aiConfigStatus === 'err' ? 'error' : 'warning')"
+              :closable="false" show-icon class="flow-card__ai-alert"></el-alert>
+
+            <el-alert v-if="aiConfigStatus === 'ok'" title="AI 大模型 API 已连接，运行检查时将启用 AI 语义分析功能" type="success"
+              :closable="false" show-icon class="flow-card__ai-alert"></el-alert>
+
+            <div class="flow-card__status" v-if="statusText && statusKind !== 'info'">
+              <el-alert :title="statusText"
+                :type="statusKind === 'ok' ? 'success' : (statusKind === 'err' ? 'error' : 'warning')" :closable="false"
+                show-icon></el-alert>
+            </div>
+          </el-card>
+
+        </div>
+
+        <div class="result-area">
+          <el-tabs v-model="activeResultTab" type="border-card">
+            <el-tab-pane name="preview" label="预览与标注">
+              <div class="tab-toolbar">
+                <span class="tab-toolbar__label">业务功能点 Sheet</span>
+                <el-select v-model="state.violationSheetFilter" size="small" style="width: 160px;"
+                  :disabled="state.businessSheets.length===0">
+                  <el-option label="全部" value="__ALL__"></el-option>
+                  <el-option v-for="n in state.businessSheets" :key="n" :label="n" :value="n"></el-option>
+                </el-select>
+                <span class="tab-toolbar__label">起始行</span>
+                <el-input-number v-model="previewStartRow" :min="1" size="small"
+                  style="width: 100px;"></el-input-number>
+                <span class="tab-toolbar__label">行数</span>
+                <el-input-number v-model="previewPageSize" :min="10" :max="200" size="small"
+                  style="width: 100px;"></el-input-number>
+                <el-button size="small" :disabled="state.businessSheets.length===0"
+                  @click="refreshPreview">刷新预览</el-button>
+                <div class="tab-toolbar__legend">
+                  <el-tag size="mini" type="danger">强制</el-tag>
+                  <el-tag size="mini" type="warning">建议</el-tag>
+                </div>
+              </div>
+
+              <el-empty v-if="!state.bookWb" description="请先上传规模估算书并运行检查"></el-empty>
+              <template v-else>
+                <el-table class="previewElTable" :data="previewTableData" :height="1500" border
+                  :cell-class-name="previewCellClassName" :row-key="(row) => row.rowNum" size="small">
+                  <el-table-column fixed="left" prop="rowNum" label="行" width="60"></el-table-column>
+
+                  <el-table-column v-for="c in previewHeaderCols" :key="'pc'+c" :prop="'c'+c" :label="colToLetter(c)"
+                    min-width="90">
+                    <template slot-scope="scope">
+                      <span :title="previewCellTitle(scope.row.rowNum, c)">{{ scope.row['c'+c] }}</span>
+                    </template>
+                  </el-table-column>
+
+                  <el-table-column v-if="showPreviewViolationsCol" fixed="right" label="违例清单" width="460">
+                    <template slot-scope="scope">
+                      <div class="previewViolationsCell"
+                        v-if="scope.row.violationsItems && scope.row.violationsItems.length">
+                        <template v-for="(line, idx) in scope.row.violationsItems">
+                          <!-- AI 加载中：替换原违例内容，仅显示加载动画 -->
+                          <div v-if="line.aiPending" :key="'pending-'+idx" class="violation-ai-pending">
+                            <i class="el-icon-loading"></i>
+                            <span class="violation-ai-pending__text">AI 大模型正在验证中…</span>
+                          </div>
+                          <!-- AI 验证通过：不显示任何内容 -->
+                          <div v-else-if="line.aiStatus === 'not-confirmed'" :key="'pass-'+idx" style="display:none"></div>
+                          <!-- AI 验证不通过：在原违例理由基础上追加 AI 理由 -->
+                          <div v-else-if="line.aiStatus === 'confirmed'" :key="'fail-'+idx"
+                            :class="line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest'">
+                            <span class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
+                            {{ line.text }}
+                            <div class="ai-reason">
+                              <span class="ai-reason__label">AI 验证确认</span>：{{ line.aiReason }}
+                            </div>
+                          </div>
+                          <!-- 无 AI 状态：正常展示 -->
+                          <div v-else :key="'normal-'+idx"
+                            :class="line.source === 'ai' ? 'violation-desc--ai' : (line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest')">
+                            <span v-if="line.source === 'ai'" class="ai-badge">AI</span>
+                            <span v-if="line.source === 'ai'" class="ai-icon">⚡</span>
+                            <span v-else class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
+                            {{ line.text }}
+                            <div v-if="line.source === 'ai' && line.reason" class="ai-reason">
+                              <span class="ai-reason__label">AI 分析原因</span>：{{ line.reason }}
+                            </div>
+                          </div>
+                        </template>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </template>
+            </el-tab-pane>
+
+            <el-tab-pane name="summary" label="结果摘要">
+              <div class="summary-toolbar">
+                <el-button class="btn-save-image" size="small" @click="saveAsImage"
+                  :disabled="!hasChecked" icon="el-icon-picture-outline">保存为图片</el-button>
+              </div>
+
+              <div id="summaryTabContent">
+                <div class="summary-kpi-row">
+                  <div class="summary-kpi-card">
+                    <div class="summary-kpi-card__label">AI 辅助检查</div>
+                    <div class="summary-kpi-card__value" :class="aiEnabledForViolations ? 'summary-kpi-card__value--on' : 'summary-kpi-card__value--off'">
+                      {{ aiEnabledForViolations ? '✓ 已开启' : '✗ 未开启' }}
+                    </div>
+                  </div>
+                  <div class="summary-kpi-card">
+                    <div class="summary-kpi-card__label">违例统计</div>
+                    <div class="summary-kpi-card__value">
+                      <span class="summary-kpi-card__badge summary-kpi-card__badge--danger">{{ violationMustCount }}</span>
+                      <span class="summary-kpi-card__badge summary-kpi-card__badge--warning">{{ violationSuggestCount }}</span>
+                    </div>
+                    <div class="summary-kpi-card__desc">强制 / 建议</div>
+                  </div>
+                  <div class="summary-kpi-card">
+                    <div class="summary-kpi-card__label">估算书 vs 需求书</div>
+                    <div class="summary-kpi-card__value">
+                      <span class="summary-kpi-card__badge summary-kpi-card__badge--danger">{{ compareInPointCount }}</span>
+                      <span class="summary-kpi-card__badge summary-kpi-card__badge--warning">{{ compareInWpsCount }}</span>
+                    </div>
+                    <div class="summary-kpi-card__desc">多估 / 漏估</div>
+                  </div>
+                </div>
+
+                <div v-if="compareRes && compareEstimateSummary.length" class="summary-section">
+                  <div class="summary-block">
+                    <div class="summary-block__title">
+                      <i class="el-icon-warning"></i> 功能点多估 / 漏估统计
+                    </div>
+                    <div class="summary-block__content">
+                      <el-table :data="compareEstimateSummary" border size="small" style="width: 100%;">
+                        <el-table-column prop="sheet" label="Sheet名" width="200"></el-table-column>
+                        <el-table-column prop="batch" label="批次" width="120"></el-table-column>
+                        <el-table-column prop="type" label="类型" width="80" align="center">
+                          <template slot-scope="scope">
+                            <span :class="scope.row.type === '多估' ? 'summary-count summary-count--danger' : 'summary-count summary-count--warning'">{{ scope.row.type }}</span>
+                          </template>
+                        </el-table-column>
+                        <el-table-column label="条数" width="80" align="center">
+                          <template slot-scope="scope">
+                            <span :class="scope.row.type === '多估' ? 'summary-count summary-count--danger' : 'summary-count summary-count--warning'">{{ scope.row.count }}</span>
+                          </template>
+                        </el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="aiEnabledForViolations && compareRes && compareRes.inBoth && compareRes.inBoth.length" class="summary-section">
+                  <div class="summary-block summary-block--info">
+                    <div class="summary-block__title">
+                      <i class="el-icon-info"></i> 规模书 x 需求书 AI审核
+                    </div>
+                    <div class="summary-block__content">
+                      <!-- AI 超时提示 -->
+                      <div v-if="compareRes.aiTimedOut" class="summary-alert" style="background: #fdf6ec; border-color: #e6a23c;">
+                        <i class="el-icon-warning"></i> AI 大模型连接超时，无法获取相似度分析结果。请检查网络连接或 AI 服务状态后重试。
+                      </div>
+                      <template v-else>
+                        <!-- 审核统计 -->
+                        <div v-if="aiReviewStats" style="font-size: 13px; color: var(--text); line-height: 1.8; margin-bottom: 10px;">
+                          规模书共 <strong>{{ aiReviewStats.total }}</strong> 个功能点，多估 <strong>{{ aiReviewStats.over }}</strong> 个，漏估 <strong>{{ aiReviewStats.under }}</strong> 个，AI 实际审核 <strong>{{ aiReviewStats.reviewed }}</strong> 个；
+                          其中匹配 <strong>{{ aiReviewStats.matched }}</strong> 个<span v-if="aiReviewStats.mismatched > 0">，不匹配 <strong style="color: #c62828;">{{ aiReviewStats.mismatched }}</strong> 个</span>。
+                        </div>
+                        <div v-if="aiMismatchCount > 0" class="summary-alert" style="background: #fef0f0; border-color: #f56c6c;">
+                          <div style="margin-bottom: 4px;">共有 <strong>{{ aiMismatchCount }}</strong> 项功能点 AI 检测存在不匹配风险，请关注：</div>
+                          <div v-for="(item, i) in aiMismatchByBatch" :key="item.batch" style="padding-left: 12px; font-size: 12px;">
+                            · {{ item.batch }}需求说明书，存在<strong>{{ item.mismatchCount }}</strong>条不匹配对应需求的功能点
+                          </div>
+                        </div>
+                        <div v-else-if="aiCompareLoading" class="summary-empty">AI 分析进行中…</div>
+                        <div v-else-if="aiMismatchCount === 0 && !aiCompareLoading" class="summary-empty">所有功能点均已通过 AI 检测</div>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="hasChecked && violationSummaryBySheet.length" class="summary-section">
+                  <div class="summary-block summary-block--danger">
+                    <div class="summary-block__title">
+                      <i class="el-icon-document"></i> 违例清单汇总
+                    </div>
+                    <div class="summary-block__content">
+                      <div v-for="(sheetItem, idx) in violationSummaryBySheet" :key="sheetItem.sheet" class="violation-summary-item">
+                        <div class="violation-summary-item__header">
+                          <span class="violation-summary-item__sheet">{{ sheetItem.sheet }}</span>
+                          <span class="violation-summary-item__counts">
+                            <span class="summary-count summary-count--danger" v-if="sheetItem.mustCount > 0">强制 {{ sheetItem.mustCount }} 条</span>
+                            <span class="summary-count summary-count--warning" v-if="sheetItem.suggestCount > 0">建议 {{ sheetItem.suggestCount }} 条</span>
+                          </span>
+                        </div>
+                        <div class="violation-summary-item__details">
+                          <!-- 强制违例详情 -->
+                          <div v-if="sheetItem.mustRules && sheetItem.mustRules.length > 0" class="violation-summary-rules violation-summary-rules--must">
+                            <span class="violation-summary-rules__label">强制违例：</span>
+                            <span v-for="(rule, ri) in sheetItem.mustRules" :key="rule.ruleId" class="violation-summary-rules__item">
+                              规则{{ rule.ruleId }}{{ rule.ruleName ? '(' + rule.ruleName + ')' : '' }} {{ rule.count }}条<span v-if="ri < sheetItem.mustRules.length - 1">；</span>
+                            </span>
+                          </div>
+                          <!-- 建议违例详情 -->
+                          <div v-if="sheetItem.suggestRules && sheetItem.suggestRules.length > 0" class="violation-summary-rules violation-summary-rules--suggest">
+                            <span class="violation-summary-rules__label">建议违例：</span>
+                            <span v-for="(rule, ri) in sheetItem.suggestRules" :key="rule.ruleId" class="violation-summary-rules__item">
+                              规则{{ rule.ruleId }}{{ rule.ruleName ? '(' + rule.ruleName + ')' : '' }} {{ rule.count }}条<span v-if="ri < sheetItem.suggestRules.length - 1">；</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <el-empty v-if="!hasChecked" description="请点击「运行检查」查看摘要"></el-empty>
+              </div>
+            </el-tab-pane>
+
+            <el-tab-pane name="violations">
+              <span slot="label">
+                违例清单
+                <el-badge :value="violationMustCount + violationSuggestCount" :hidden="!hasChecked"
+                  class="tab-badge-item"></el-badge>
+              </span>
+              <div id="violationsTabContent">
+              <div class="tab-toolbar">
+                <span class="tab-toolbar__label">业务功能点 Sheet</span>
+                <el-select v-model="state.violationSheetFilter" size="small" style="width: 160px;">
+                  <el-option label="全部" value="__ALL__"></el-option>
+                  <el-option v-for="n in state.businessSheets" :key="n" :label="n" :value="n"></el-option>
+                </el-select>
+                <el-radio-group v-model="violationTypeFilter" size="mini" style="margin-left: 12px;">
+                  <el-radio-button label="all">展示全部</el-radio-button>
+                  <el-radio-button label="must">只看强制</el-radio-button>
+                  <el-radio-button label="suggest">只看建议</el-radio-button>
+                </el-radio-group>
+                <span class="tab-toolbar__summary" v-html="resultSummaryHtml"></span>
+              </div>
+
+              <el-table id="violationsTable" :data="paginatedViolationRows" border stripe size="small" style="width: 100%"
+                v-if="filteredGroupedViolationRows.length">
+                <el-table-column prop="sheet" label="Sheet" width="160"></el-table-column>
+                <el-table-column prop="row" label="行" width="60"></el-table-column>
+                <el-table-column label="说明" min-width="400">
+                  <template slot-scope="scope">
+                    <div class="violation-desc">
+                      <template v-for="(line, idx) in scope.row.items">
+                        <!-- AI 加载中：替换原违例内容，仅显示加载动画 -->
+                        <div v-if="line.aiPending" :key="'pending-'+idx" class="violation-ai-pending">
+                          <i class="el-icon-loading"></i>
+                          <span class="violation-ai-pending__text">AI 大模型正在验证中…</span>
+                        </div>
+                        <!-- AI 验证通过：不显示任何内容 -->
+                        <div v-else-if="line.aiStatus === 'not-confirmed'" :key="'pass-'+idx" style="display:none"></div>
+                        <!-- AI 验证不通过：在原违例理由基础上追加 AI 理由 -->
+                        <div v-else-if="line.aiStatus === 'confirmed'" :key="'fail-'+idx"
+                          :class="line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest'">
+                          <span class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
+                          {{ line.text }}
+                          <div class="ai-reason">
+                            <span class="ai-reason__label">AI 验证确认</span>：{{ line.aiReason }}
+                          </div>
+                        </div>
+                        <!-- 无 AI 状态：正常展示 -->
+                        <div v-else :key="'normal-'+idx"
+                          :class="line.source === 'ai' ? 'violation-desc--ai' : (line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest')">
+                          <span v-if="line.source === 'ai'" class="ai-badge">AI</span>
+                          <span v-if="line.source === 'ai'" class="ai-icon">⚡</span>
+                          <span v-else class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
+                          {{ line.text }}
+                          <div v-if="line.source === 'ai' && line.reason" class="ai-reason">
+                            <span class="ai-reason__label">AI 分析原因</span>：{{ line.reason }}
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column width="80">
+                  <template slot-scope="scope">
+                    <el-button size="mini" @click="copyText(scope.row.text)">复制</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <el-pagination
+                v-if="filteredGroupedViolationRows.length > violationsPageSize"
+                style="margin-top: 12px; text-align: right;"
+                :current-page="violationsPage"
+                :page-size="violationsPageSize"
+                :total="filteredGroupedViolationRows.length"
+                layout="total, prev, pager, next"
+                @current-change="violationsPage = $event">
+              </el-pagination>
+
+              <el-empty v-if="groupedViolationRows.length === 0 && hasChecked"
+                description="恭喜，所有检查项均通过，未发现违例"></el-empty>
+              <el-empty v-if="groupedViolationRows.length === 0 && !hasChecked" description="请点击「运行检查」开始检查"></el-empty>
+            </div>
+            </el-tab-pane>
+
+              <el-tab-pane name="compareGroup">
+                <span slot="label">
+                  需求&amp;功能点比对结果
+                  <el-badge
+                    :value="compareRes && compareRes.inBoth ? compareRes.inBoth.length : 0"
+                    :hidden="!compareRes || !compareRes.inBoth || !compareRes.inBoth.length"
+                  ></el-badge>
+                </span>
+                <el-tabs v-model="compareSubTab" type="card">
+                  <el-tab-pane name="inPoint">
+                    <span slot="label">
+                      功能点多估提示
+                      <el-badge :value="compareRes && compareRes.inPoint ? compareRes.inPoint.length : 0" :hidden="!compareRes || !compareRes.inPoint || !compareRes.inPoint.length"></el-badge>
+                    </span>
+                    <template v-if="compareRes">
+                      <template v-if="compareRes.inPoint && compareRes.inPoint.length">
+                        <div class="compare-func-desc compare-func-desc--missing">
+                          用【规模估算书】对比【需求说明书】，查找规模估算书中"多"的部分。
+                        </div>
+                        <el-alert
+                          title="未在需求文档中找到规模估算书中以下批次-章节的需求条目，请核对是否多估"
+                          type="warning"
+                          :closable="false"
+                          show-icon
+                          style="margin-bottom: 12px;"
+                        ></el-alert>
+                        <el-table :data="paginatedCompareInPoint" border stripe size="small" style="width: 100%; margin-top: 12px;">
+                          <el-table-column prop="sheet" label="Sheet" width="160"></el-table-column>
+                          <el-table-column prop="batch" label="估算批次" width="120"></el-table-column>
+                          <el-table-column prop="index" label="业务需求对应章节或页数" width="180"></el-table-column>
+                          <el-table-column prop="pointName" label="功能名称" min-width="200"></el-table-column>
+                        </el-table>
+                        <el-pagination v-if="compareRes.inPoint.length > compareInPointPageSize"
+                          style="margin-top: 12px; text-align: right;"
+                          :current-page="compareInPointPage"
+                          :page-size="compareInPointPageSize"
+                          :total="compareRes.inPoint.length"
+                          layout="prev, pager, next"
+                          @current-change="compareInPointPage = $event">
+                        </el-pagination>
+                      </template>
+                      <el-alert v-else title="需求文档中需求条目已覆盖规模估算书中的全部估算条目" type="success" :closable="false" show-icon></el-alert>
+                    </template>
+                    <el-empty v-else description="暂无数据"></el-empty>
+                  </el-tab-pane>
+                  <el-tab-pane name="inWps">
+                    <span slot="label">
+                      功能点漏估提示
+                      <el-badge :value="compareRes && compareRes.inWps ? compareRes.inWps.length : 0" :hidden="!compareRes || !compareRes.inWps || !compareRes.inWps.length"></el-badge>
+                    </span>
+                    <template v-if="compareRes">
+                      <template v-if="compareRes.inWps && compareRes.inWps.length">
+                        <div class="compare-func-desc compare-func-desc--missing">
+                          用【需求说明书】对比【规模估算书】，查找规模估算书中"漏"的部分。
+                        </div>
+                        <el-alert
+                          title="未在规模估算书中找到需求文档中以下批次-章节的估算条目，请核对是否漏估"
+                          type="warning"
+                          :closable="false"
+                          show-icon
+                          style="margin-bottom: 12px;"
+                        ></el-alert>
+                        <el-table :data="paginatedCompareInWps" border stripe size="small" style="width: 100%;">
+                          <el-table-column prop="batch" label="需求批次" width="120"></el-table-column>
+                          <el-table-column prop="index" label="业务需求对应章节或页数" width="180"></el-table-column>
+                          <el-table-column prop="wpsDesc" label="功能点需求描述" min-width="300"></el-table-column>
+                        </el-table>
+                        <el-pagination v-if="compareRes.inWps.length > compareInWpsPageSize"
+                          style="margin-top: 12px; text-align: right;"
+                          :current-page="compareInWpsPage"
+                          :page-size="compareInWpsPageSize"
+                          :total="compareRes.inWps.length"
+                          layout="prev, pager, next"
+                          @current-change="compareInWpsPage = $event">
+                        </el-pagination>
+                      </template>
+                      <el-alert v-else title="规模估算书中估算条目已覆盖需求文档中的全部需求条目" type="success" :closable="false" show-icon></el-alert>
+                    </template>
+                    <el-empty v-else description="暂无数据"></el-empty>
+                  </el-tab-pane>
+                  <el-tab-pane name="aiCompare">
+                    <span slot="label">
+                      AI比对结果
+                      <el-badge v-if="aiCompareLoading" type="info"><i class="el-icon-loading"></i></el-badge>
+                      <el-badge v-else :value="aiMismatchCount" type="danger" :hidden="!compareRes || !compareRes.inBoth || !compareRes.inBoth.length || aiMismatchCount === 0"></el-badge>
+                    </span>
+                    <el-empty v-if="!aiEnabledForViolations" description="此功能需要开启AI检查才可以使用，请先配置并连接AI大模型API"></el-empty>
+                    <template v-else>
+                      <!-- AI 超时提示 -->
+                      <el-alert
+                        v-if="compareRes && compareRes.aiTimedOut"
+                        title="AI 大模型连接超时"
+                        :description="compareRes.aiTimeoutMessage || 'AI 大模型连接超时，请检查网络连接或 AI 服务状态后重试。'"
+                        type="error"
+                        :closable="false"
+                        show-icon
+                        style="margin-bottom: 12px;"
+                      ></el-alert>
+                      <!-- AI 节点异常提示 -->
+                      <div v-if="compareRes && compareRes.aiNodeErrors && compareRes.aiNodeErrors.length > 0" class="ai-errors">
+                        <el-alert
+                          :title="'检测到 ' + compareRes.aiNodeErrors.length + ' 个 AI 节点执行异常'"
+                          type="error"
+                          :closable="false"
+                          show-icon
+                          style="margin-bottom: 10px;"
+                        ></el-alert>
+                        <div v-for="(err, ei) in compareRes.aiNodeErrors" :key="ei" class="ai-error-card">
+                          <div class="ai-error-card__header" @click="err._expanded = !err._expanded">
+                            <span class="ai-error-card__dot"></span>
+                            <span class="ai-error-card__title">{{ err.node_title || '未知节点' }}</span>
+                            <span class="ai-error-card__id">{{ err.node_id || '-' }}</span>
+                            <i :class="err._expanded ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" class="ai-error-card__arrow"></i>
+                          </div>
+                          <div v-show="err._expanded" class="ai-error-card__body">
+                            <pre class="ai-error-card__exception">{{ err.exception }}</pre>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- AI 思考动画（置于 AI 比对结果 header 上方） -->
+                      <div v-if="aiThinkingPhase !== 'idle'" class="ai-log-wrapper">
+                        <div class="ai-thinking-line" :class="{ 'is-done': aiThinkingPhase === 'done' }">
+                          <span class="ai-thinking-dot" v-if="aiThinkingPhase === 'thinking'"></span>
+                          <span class="ai-thinking-text">
+                            <span v-for="(ch, idx) in (aiThinkingText || '').split('')"
+                                  :key="idx"
+                                  class="ai-thinking-char"
+                                  :class="{ 'ai-thinking-char--active': aiThinkingPhase === 'thinking' && idx === aiThinkingSweepIdx }"
+                            >{{ ch }}</span>
+                          </span>
+                          <span class="ai-thinking-count" v-if="aiSseEventCount > 0">{{ aiSseEventCount }}条AI SSE请求</span>
+                        </div>
+                      </div>
+                      <template v-if="compareRes">
+                        <div class="compare-section" v-if="compareRes.inBoth && compareRes.inBoth.length">
+                          <div class="ai-compare-header">
+                            <i class="el-icon-cpu"></i>
+                            <span>AI 比对结果</span>
+                            <el-radio-group v-model="aiCompareFilter" size="mini" style="margin-left: 16px;">
+                              <el-radio-button label="all">展示全部</el-radio-button>
+                              <el-radio-button label="matched">只看匹配</el-radio-button>
+                              <el-radio-button label="mismatched">只看不匹配</el-radio-button>
+                            </el-radio-group>
+                            <template v-if="aiCompareLoading">
+                              <i class="el-icon-loading ai-compare-header__loading"></i>
+                            </template>
+                          </div>
+                          <el-table :data="paginatedAiCompareResults" border size="small" style="width: 100%; margin-top: 10px;">
+                            <el-table-column prop="batch" label="需求批次" width="120"></el-table-column>
+                            <el-table-column prop="index" label="章节或页数" width="120"></el-table-column>
+                            <el-table-column prop="pointName" label="功能名称" min-width="150"></el-table-column>
+                            <el-table-column label="功能点/需求描述是否匹配(AI分析)" width="150">
+                                <template slot-scope="scope">
+                                  <i v-if="aiCompareLoading" class="el-icon-loading ai-cell-spinner"></i>
+                                  <span v-else-if="scope.row.aiMatched === true" class="ai-match-yes">匹配</span>
+                                  <span v-else-if="scope.row.aiMatched === false" class="ai-match-no">不匹配</span>
+                                  <span v-else class="ai-empty">-</span>
+                                </template>
+                              </el-table-column>
+                              <el-table-column label="功能点/需求描述相似度(AI分析)" width="150">
+                                <template slot-scope="scope">
+                                  <i v-if="aiCompareLoading" class="el-icon-loading ai-cell-spinner"></i>
+                                  <span v-else-if="scope.row.similarityRate != null" :class="similarityClass(scope.row.similarityRate)">{{ formatSimilarity(scope.row.similarityRate) }}</span>
+                                  <span v-else class="ai-empty">-</span>
+                                </template>
+                              </el-table-column>
+                              <el-table-column label="对应需求描述" min-width="180">
+                                <template slot-scope="scope">
+                                  <i v-if="aiCompareLoading" class="el-icon-loading ai-cell-spinner"></i>
+                                  <span v-else :class="{ 'ai-empty': !scope.row.aiDesc }">{{ scope.row.aiDesc || '-' }}</span>
+                                </template>
+                              </el-table-column>
+                              <el-table-column label="判断依据" min-width="180">
+                                <template slot-scope="scope">
+                                  <i v-if="aiCompareLoading" class="el-icon-loading ai-cell-spinner"></i>
+                                  <span v-else :class="{ 'ai-empty': !scope.row.aiReason }">{{ scope.row.aiReason || '-' }}</span>
+                                </template>
+                              </el-table-column>
+                          </el-table>
+                          <el-pagination v-if="filteredAiCompareResults.length > aiComparePageSize"
+                            style="margin-top: 12px; text-align: right;"
+                            :current-page="aiComparePage"
+                            :page-size="aiComparePageSize"
+                            :total="filteredAiCompareResults.length"
+                            layout="prev, pager, next"
+                            @current-change="aiComparePage = $event">
+                          </el-pagination>
+                        </div>
+                        <el-alert v-else-if="compareRes.inPoint && compareRes.inPoint.length" 
+                                  title="规模估算书中的功能点在需求文档中未找到对应项（多估），无法进行AI比对" 
+                                  type="warning" :closable="false" show-icon></el-alert>
+                        <el-alert v-else-if="compareRes.inWps && compareRes.inWps.length" 
+                                  title="需求文档中的功能点在规模估算书中未找到对应项（漏估），无法进行AI比对" 
+                                  type="warning" :closable="false" show-icon></el-alert>
+                        <el-empty v-else description="规模估算书与需求文档中没有功能点数据，无法进行AI比对"></el-empty>
+                      </template>
+                      <el-empty v-else description="暂无数据"></el-empty>
+                    </template>
+                  </el-tab-pane>
+                </el-tabs>
+              </el-tab-pane>
+          </el-tabs>
+        </div>
+
+        <!-- 规则表触发按钮：固定在页面右侧 -->
+        <div class="rules-btn-fixed" @click="rulesDrawerVisible = true" title="查看规则表">
+          <i class="el-icon-notebook-2"></i>
+          <span>规则</span>
+        </div>
+
+        <!-- 规则表 Drawer -->
+        <el-drawer title="规则表展示" :visible.sync="rulesDrawerVisible" direction="rtl" size="750px"
+          :modal="false" :before-close="handleRulesDrawerClose">
+          <div class="rules-drawer-body">
+            <div class="rules-drawer-toolbar">
+              <span class="rules-drawer-toolbar__label">规则版本</span>
+              <el-radio-group v-model="state.selectedRuleVersion" size="small" @change="onRulesVersionChange">
+                <el-radio-button label="v2.0.16">v2.0.16</el-radio-button>
+                <el-radio-button label="v2.0.15">v2.0.15</el-radio-button>
+              </el-radio-group>
+            </div>
+            <p class="rules-drawer-hint">展示《项目检查规则》中的全部条目，灰色规则为当前尚未在工具中实现的检查。</p>
+            <el-table :data="state.rules" border size="small" style="width: 100%" :row-class-name="ruleRowClassName">
+              <el-table-column prop="id" label="序号" width="70"></el-table-column>
+              <el-table-column prop="name" label="检查规则" min-width="200"></el-table-column>
+              <el-table-column label="检查类型" width="90">
+                <template slot-scope="scope">
+                  <span class="ruleType"
+                    :class="scope.row.supported === false ? 'ruleType--unsupported' : (scope.row.type === '强制' ? 'ruleType--must' : 'ruleType--suggest')">{{
+                    scope.row.type || '—' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="是否支持" width="90">
+                <template slot-scope="scope">
+                  <el-tag :type="scope.row.supported === false ? 'info' : 'success'" size="small">
+                    {{ scope.row.supported === false ? '暂不支持' : '已经支持' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="检查方案" min-width="260">
+                <template slot-scope="scope">
+                  <span v-html="formatScheme(scope.row.scheme)" class="scheme-cell"></span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-drawer>
+
+      </el-main>
+
+      <!-- ══════════════════════════════════════════════════ -->
+      <!--  版本更新弹窗                                        -->
+      <!-- ══════════════════════════════════════════════════ -->
+
+      <!-- 发现新版本 -->
+      <el-dialog title="🔔 发现新版本" :visible.sync="showUpdateDialog" width="460px" :modal="false" :close-on-click-modal="false">
+        <div class="update-dialog__info">
+          <div class="update-dialog__row">
+            <span class="update-dialog__label">当前版本：</span>
+            <span>v{{ currentVersion }}</span>
+          </div>
+          <div class="update-dialog__row">
+            <span class="update-dialog__label">最新版本：</span>
+            <span class="update-dialog__new-version">v{{ latestVersion }}</span>
+          </div>
+          <div class="update-dialog__row" v-if="updatePackageSize">
+            <span class="update-dialog__label">更新包大小：</span>
+            <span>{{ formatUpdateSize(updatePackageSize) }}</span>
+          </div>
+        </div>
+        <div class="update-dialog__changelog" v-if="updateChangelog.length">
+          <div class="update-dialog__changelog-title">📋 更新内容：</div>
+          <ul class="update-dialog__changelog-list">
+            <li v-for="(item, idx) in updateChangelog" :key="idx">{{ item }}</li>
+          </ul>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="dismissUpdate">稍后提醒</el-button>
+          <el-button type="primary" @click="startUpdate">立即更新</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 更新进度 -->
+      <el-dialog title="正在更新 FileChecker..." :visible.sync="showUpdateProgress" width="440px" :modal="false" :close-on-click-modal="false" :show-close="false">
+        <div class="update-progress-dialog__bar-wrap">
+          <div class="update-progress-dialog__bar">
+            <div class="update-progress-dialog__bar-fill" :style="{ width: updateProgress + '%' }"></div>
+          </div>
+          <span class="update-progress-dialog__percent">{{ updateProgress }}%</span>
+        </div>
+        <div class="update-progress-dialog__stage">{{ updateStageMessage }}</div>
+        <div class="update-progress-dialog__detail" v-if="updateDetailMessage">{{ updateDetailMessage }}</div>
+        <div class="update-progress-dialog__hint" v-if="updatePhase !== 'restarting'">请勿关闭此窗口</div>
+        <div class="update-progress-dialog__hint update-progress-dialog__hint--restart" v-if="updatePhase === 'restarting'">
+          🔄 {{ updateStageMessage }}
+        </div>
+      </el-dialog>
+
+      <!-- 更新完成 -->
+      <el-dialog title="✅ 更新完成！" :visible.sync="showUpdateComplete" width="420px" :modal="false" :close-on-click-modal="false">
+        <div class="update-dialog__info">
+          <p>已更新至 <strong>v{{ latestVersion || currentVersion }}</strong></p>
+          <p class="update-dialog__hint">请使用 Ctrl+F5 强制刷新以应用最新版本</p>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="dismissComplete">稍后刷新</el-button>
+          <el-button type="primary" @click="reloadPage">立即刷新</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 更新失败 -->
+      <el-dialog title="❌ 更新失败" :visible.sync="showUpdateError" width="460px" :modal="false" :close-on-click-modal="false">
+        <div class="update-dialog__info">
+          <p class="update-dialog__error-msg">{{ updateErrorMessage || '更新过程中发生未知错误' }}</p>
+          <div class="update-dialog__error-hint" v-if="updateErrorCode === 'CHECKSUM_MISMATCH'">
+            <p><strong>可能原因：</strong></p>
+            <ul><li>下载过程中文件损坏</li><li>网络传输异常</li></ul>
+            <p><strong>建议操作：</strong></p>
+            <ul><li>点击「重试」重新下载</li><li>如多次失败，请联系管理员手动更新</li></ul>
+          </div>
+          <div class="update-dialog__error-hint" v-else-if="updateErrorCode === 'NETWORK_UNREACHABLE'">
+            <p>无法连接更新服务器，请检查网络连接</p>
+          </div>
+          <div class="update-dialog__error-hint" v-else-if="updateErrorCode === 'DISK_FULL'">
+            <p>磁盘空间不足，无法完成更新。请清理磁盘后重试</p>
+          </div>
+          <div class="update-dialog__error-hint" v-else-if="updateErrorCode === 'BACKUP_FAILED'">
+            <p>无法备份当前版本。当前版本文件未被修改，可安全重试</p>
+          </div>
+          <div class="update-dialog__error-hint" v-else-if="updateErrorCode === 'INSTALL_FAILED' || updateErrorCode === 'EXTRACT_FAILED'">
+            <p>当前版本已自动恢复到更新前状态</p>
+          </div>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="dismissError">取消</el-button>
+          <el-button type="primary" v-if="updateCanRetry" @click="retryUpdate">重试</el-button>
+        </span>
+      </el-dialog>
+
+    </el-container>
+
+    <div class="modal-overlay" v-if="batchDialogVisible" @click.self="cancelBatchDialog">
+      <div class="modal-content">
+        <h3>上传批次需求文档</h3>
+        <div class="modal-body">
+          <p>批次名称：<strong>批次{{ ((state.requireDocs && state.requireDocs.length) || 0) + 1 }}</strong></p>
+          <div class="upload-zone" :class="{ 'drag-over': batchDialogDragOver }" @click="openBatchFilePicker"
+            @dragover.prevent="batchDialogDragOver = true" @dragleave="batchDialogDragOver = false"
+            @drop.prevent="onBatchDialogDrop">
+            <input ref="batchFileInput" type="file" accept=".wps,.docx" class="upload-input"
+            @change="onBatchFileSelected" />
+          <span class="upload-text">{{ batchDialogFileName || '点击选择或拖拽需求文档' }}</span>
+          <span class="upload-hint">每批次仅限一个文件（.wps / .docx）</span>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <el-button type="primary" :disabled="!batchDialogFile" @click="confirmBatchUpload">确认上传</el-button>
+          <el-button @click="cancelBatchDialog">取消</el-button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" v-if="debugDialogVisible" @click.self="cancelDebugDialog">
+      <div class="modal-content modal-content--wide">
+        <h3>需求上传</h3>
+        <p style="margin: 8px 0 12px; font-size: 13px; color: var(--muted); line-height: 1.6;">
+          默认按照用户的上传顺序设置为上传的批次。
+          上传完成后，可在步骤 ② 中通过拖拽的形式修改需求说明书的批次顺序。
+        </p>
+        <el-alert v-if="debugStatusText" :title="debugStatusText"
+          :type="debugStatusKind === 'ok' ? 'success' : (debugStatusKind === 'err' ? 'error' : 'warning')"
+          :closable="false" show-icon style="margin-bottom: 12px;"></el-alert>
+      <div class="modal-body">
+          <div class="upload-zone" :class="{ 'drag-over': debugDialogDragOver }" @click="openDebugFilePicker"
+            @dragover.prevent="debugDialogDragOver = true" @dragleave="debugDialogDragOver = false"
+            @drop.prevent="onDebugDialogDrop">
+            <input ref="debugFileInput" type="file" accept=".wps,.docx" class="upload-input"
+            @change="onDebugFileSelected" />
+          <span class="upload-text">{{ debugDialogFileName || '点击选择或拖拽需求文档进行上传' }}</span>
+          <span class="upload-hint">仅支持 .wps / .docx 格式</span>
+          </div>
+
+          <div v-if="debugResult" class="debug-result">
+            <div class="debug-section">
+              <h4>文件信息</h4>
+              <div class="debug-info">
+                <p><strong>需求批次：</strong>{{ debugResult.batch || '—' }}</p>
+                <p><strong>文件名：</strong>{{ debugResult.fileName }}</p>
+                <p><strong>文件大小：</strong>{{ debugResult.fileSize }} bytes</p>
+                <p><strong>格式检测：</strong>
+                  <span v-if="debugResult.isOLE2" class="tag tag--warn">OLE2（旧版 Word）</span>
+                  <span v-else-if="debugResult.isZip" class="tag tag--ok">ZIP（新版 Word）</span>
+                  <span v-else class="tag">未知</span>
+                </p>
+                <p><strong>提取方式：</strong>{{ debugResult.extractMethod }}</p>
+                <p v-if="debugResult.extractError" class="error"><strong>提取错误：</strong>{{ debugResult.extractError }}
+                </p>
+                <p><strong>全文长度：</strong>{{ debugResult.textLength }} 字符</p>
+                <p><strong>表格数量：</strong>{{ debugResult.tableCount || 0 }}</p>
+                <p v-if="debugResult.headingStyles && debugResult.headingStyles.length"><strong>标题层级：</strong>
+                  <span v-for="s in debugResult.headingStyles" :key="s" class="tag tag--heading">{{ s }}</span>
+                </p>
+              </div>
+            </div>
+
+            <div class="debug-section">
+              <h4>原文预览（开头 500 字）</h4>
+              <pre class="debug-text">{{ debugResult.textHead500 }}</pre>
+            </div>
+
+            <div class="debug-section">
+              <h4>原文预览（末尾 500 字）</h4>
+              <pre class="debug-text">{{ debugResult.textTail500 }}</pre>
+            </div>
+
+            <div class="debug-section">
+              <h4>目录解析结果（共 {{ debugResult.tocCount }} 项）</h4>
+              <div v-if="debugResult.toc && Object.keys(debugResult.toc).length" class="debug-toc">
+                <div v-for="key in sortedTocKeys" :key="key" class="debug-toc-item">
+                  <span class="debug-toc-key">[{{ key }}]</span>
+                  <span class="debug-toc-title">{{ debugResult.toc[key] }}</span>
+                </div>
+              </div>
+              <p v-else class="error">未解析到目录</p>
+            </div>
+
+            <div class="debug-section">
+              <h4>正文提取结果（共 {{ debugResult.contentMapCount }} 个子节）</h4>
+              <div v-if="debugResult.contentMap" class="debug-content-map">
+                <div v-for="key in sortedContentMapKeys" :key="key" class="debug-content-item">
+                  <div class="debug-content-header">
+                    <span class="debug-toc-key">[{{ key }}]</span>
+                    <span class="debug-toc-title">{{ debugResult.contentMap[key].title }}</span>
+                    <span class="debug-content-len">({{ debugResult.contentMap[key].contentLen }} 字)</span>
+                  </div>
+                  <pre
+                    class="debug-text debug-text--small">{{ debugResult.contentMap[key].contentPreview || '(无内容)' }}</pre>
+                </div>
+              </div>
+              <p v-else class="error">未提取到正文</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <div class="modal-actions__left">
+            <el-button type="primary" :disabled="!debugDialogFile || uploading" @click="confirmDebugUpload"
+              :loading="uploading && !debugResult">需求书解析</el-button>
+          </div>
+          <div class="modal-actions__right">
+            <el-button type="primary" :disabled="!debugDialogFile || uploading" @click="confirmQuickUpload"
+              :loading="uploading">直接上传</el-button>
+            <el-button @click="cancelDebugDialog" :disabled="uploading">取消</el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showAiHelp" @click.self="showAiHelp = false">
+      <div class="modal-content">
+        <h3>AI 大模型 API 配置说明</h3>
+        <div class="modal-body">
+          <p>配置大模型 API 并连接成功后，智能体将对规模估算书和需求文档中的对应批次功能项进行语义理解分析，判断其对应关系。</p>
+        </div>
+        <div class="modal-actions">
+          <el-button type="primary" @click="showAiHelp = false">确定</el-button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./vendor/xlsx.full.min.js"></script>
+  <script src="./vendor/vue.min.js"></script>
+  <script src="./vendor/segmentit.js"></script>
+  <script src="./vendor/mammoth.min.js"></script>
+  <script src="./vendor/sortable.min.js"></script>
+  <script src="./vendor/element-ui/index.min.js"></script>
+  <script src="./background-animation.js"></script>
+  <script src="./common/store.js"></script>
+  <script src="./estimation.render.js"></script>
+  <script src="./estimation.js"></script>
+</body>
+
+</html>
