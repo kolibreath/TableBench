@@ -1,0 +1,6 @@
+# 批处理文件锁定 CRLF（cmd 对 LF 的 ^ 续行解析会出错，见 v3.1.0 build_exe.bat 修复记录）
+*.bat text eol=crlf
+*.png binary
+*.ttf binary
+*.woff binary
+*.7z binary
