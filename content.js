@@ -12,16 +12,33 @@
   const API_URL = 'http://ita.abc/ita/project/searchProj2022.action';
   const API_DETAIL_URL = 'http://ita.abc/ita/project/searchProj.action';
 
-  // 统一经后台打开扩展页：tabs.create 不受 web_accessible_resources origin 白名单限制，
-  // 任意页面（含本地测试页）都能跳转；扩展上下文失效时退回 window.open
+  // 统一经后台打开扩展页：tabs.create 不受 web_accessible_resources origin 白名单限制。
+  // 上下文失效（扩展重载后旧页面里的孤儿脚本）绝不能回退 window.open——非白名单页
+  // 会弹「已被屏蔽」，此时唯一正确动作是提示用户刷新页面并重新注入。
   const openExtPage = (page, query) => {
+    let contextAlive = true;
     try {
+      if (!chrome.runtime || !chrome.runtime.id) contextAlive = false;
+    } catch (e) { contextAlive = false; }
+    if (!contextAlive) {
+      alert('插件已更新，当前页面的悬浮球已失效。\n请刷新页面后重新注入（或到 ITA 页面重新打开）。');
+      return;
+    }
+    let fullUrl = '';
+    try {
+      fullUrl = chrome.runtime.getURL(page) + (query || '');
       chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: query || '' }, function (resp) {
-        // 后台未就绪（扩展刚更新未重载等）→ 回退 window.open（ita.abc 在白名单内可用）
-        if (!resp || !resp.ok) window.open(chrome.runtime.getURL(page) + (query || ''), '_blank');
+        if (chrome.runtime.lastError || !resp || !resp.ok) {
+          // 后台未就绪：仅真实 ITA 域（白名单内）回退 window.open，其余提示重新注入
+          if (/^https?:\/\/([a-z0-9.-]+\.)?ita\.abc\//i.test(location.href)) {
+            window.open(fullUrl, '_blank');
+          } else {
+            alert('插件刚刚更新，请刷新当前页面并重新注入悬浮球后再试。');
+          }
+        }
       });
     } catch (e) {
-      window.open(chrome.runtime.getURL(page) + (query || ''), '_blank');
+      alert('插件已更新，当前页面的悬浮球已失效。\n请刷新页面后重新注入（或到 ITA 页面重新打开）。');
     }
   };
 
