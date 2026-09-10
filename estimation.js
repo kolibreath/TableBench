@@ -2675,7 +2675,8 @@ window.ItaExtension = {
       if (this.state.selectedRuleVersion !== 'v2.0.16') return
       var opts = this.itaBatchOptions
       this.itaRequirementFiles.forEach(function (f, i) {
-        f.batchName = opts[i] || ('批次' + (i + 1))
+        // v3.2：用户在浮层中指定的批次优先，仅补空（保证流程与用户选择完全对应）
+        if (!f.batchName) f.batchName = opts[i] || ('批次' + (i + 1))
       })
     },
 
@@ -2731,7 +2732,9 @@ window.ItaExtension = {
           var rf = reqs[i]
           self.itaProgress = '（2/3）下载需求文档 ' + (i + 1) + '/' + reqs.length + '：' + rf.name
           var file = await self.itaDownloadFile(rf)
-          if (self.state.selectedRuleVersion === 'v2.0.16') {
+          var itaMockMode = false
+          try { itaMockMode = new URLSearchParams(window.location.search).get('itaMock') === '1' } catch (e) {}
+          if (self.state.selectedRuleVersion === 'v2.0.16' && !itaMockMode) {
             var batchName = rf.batchName || ('批次' + (i + 1))
             var formData = new FormData()
             formData.append('file', file)
@@ -2745,13 +2748,19 @@ window.ItaExtension = {
             self.state.requireDocs = [...self.state.requireDocs, { fileName: rf.name, ext: ext, batchName: batchName }]
           } else {
             await self.loadRequireFile(file)
+            // 前端解析路径（v2.0.15 / itaMock 沙箱）：补齐浮层中指定的批次
+            var docs = self.state.requireDocs || []
+            var last = docs.length ? docs[docs.length - 1] : null
+            if (last && !last.batchName) last.batchName = rf.batchName || ('批次' + (i + 1))
           }
         }
 
-        // 3) 加载完成，进入第 3 步由用户执行检查
+        // 3) 加载完成：解锁「执行检查」卡片（currentStep=2），保持 ITA 页签高亮
         self.itaProgress = ''
         self.itaSourceLocked = 'ita'
-        self.itaMode = 'manual'
+        if (self.state.requireDocs.length > 0) {
+          self.currentStep = Math.max(self.currentStep, 2)
+        }
         self.setStatus('已从 ITA 加载估算书与 ' + self.state.requireDocs.length + ' 个需求文档，请点击「执行检查」运行规则检查。', 'ok')
       } catch (e) {
         this.$message.error('后置检查失败：' + (e.message || e))

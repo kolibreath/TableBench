@@ -71,6 +71,7 @@
       '      <th>文件名</th><th style="width:96px">类型</th><th style="width:110px">批次</th>' +
       '    </tr></thead><tbody></tbody></table>' +
       '    <div class="ita-osp__note">仅需估算书与需求说明书两类文件，其他文档已自动过滤；需求书多个批次时在下拉中指定。</div>' +
+      '    <div class="ita-osp__warn" style="display:none"></div>' +
       '    <div class="ita-osp__actions">' +
       '      <button class="el-button el-button--primary el-button--small ita-osp__load" type="button">' +
       '        <span>下载并加载到检查流程</span></button>' +
@@ -291,13 +292,41 @@
     Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__batch'), function (sel) {
       sel.addEventListener('change', function () {
         state.files[Number(sel.dataset.i)].batchName = sel.value;
+        updateWarn();
       });
     });
     root.querySelector('.ita-osp__picked').textContent =
       '已选：' + (state.picked && (state.picked.projname || state.picked.prjid) || '') +
       (state.picked && state.picked.projectno ? '（' + state.picked.projectno + '）' : '');
+
+    updateWarn();
     root.querySelector('.ita-osp__list').style.display = 'none';
     root.querySelector('.ita-osp__confirm').style.display = '';
+  }
+
+  /** 合并批次警示：多份需求说明书指定同一批次时明确提示（后续上传与比对按此批次合并处理） */
+  function updateWarn() {
+    if (!root) return;
+    var byBatch = {};
+    state.files.forEach(function (f) {
+      if (f.role === 'requirement' && f.batchName) {
+        (byBatch[f.batchName] = byBatch[f.batchName] || []).push(f.name);
+      }
+    });
+    var merged = Object.keys(byBatch).filter(function (b) { return byBatch[b].length > 1; });
+    var warn = root.querySelector('.ita-osp__warn');
+    if (!warn) return;
+    if (merged.length) {
+      warn.style.display = '';
+      warn.innerHTML = merged.map(function (b) {
+        var names = byBatch[b];
+        return '<div>⚠ ' + esc(b) + ' 合并了 ' + names.length + ' 份需求说明书：' +
+          esc(names.join('、')) + '（加载后将按 ' + esc(b) + ' 合并比对）</div>';
+      }).join('');
+    } else {
+      warn.style.display = 'none';
+      warn.innerHTML = '';
+    }
   }
 
   // ── 确认：回写 Vue 状态并调用既有 itaLoad() ──
@@ -316,7 +345,7 @@
         return { idFile: f.idFile, idPsn: f.idPsn, name: f.name, size: f.size, role: f.role, batchName: f.batchName };
       }),
     };
-    if (typeof vm.itaPrepareBatches === 'function') vm.itaPrepareBatches();
+    // 不调用 itaPrepareBatches 覆盖——用户在浮层中指定的批次即最终批次
     close();
     vm.itaLoad();
   }
