@@ -54,6 +54,13 @@ def _get_temp_session_dir() -> str:
 
 app = Flask(__name__)
 
+# ── 模块化路由（归属分离：检查历史 / 工时后端各自独立文件，避免交叉修改） ──
+from history_api import bp as history_api_bp  # noqa: E402
+from workhours_api import bp as workhours_api_bp  # noqa: E402
+
+app.register_blueprint(history_api_bp)
+app.register_blueprint(workhours_api_bp)
+
 _batch_docs: dict[str, dict] = {}
 
 # ── Mock 模式下的 session 元数据（用于 agentInitChat 生成对应数量结果）─
@@ -261,31 +268,7 @@ def api_parse_doc_com():
                 pass
 
 
-# ── 检查历史（IndexedDB 主存的 SQLite 备份） ──────────────────
-
-@app.route("/api/history/sync", methods=["POST"])
-def api_history_sync():
-    record = request.get_json(silent=True) or {}
-    return jsonify(storage_service.history_sync(record))
-
-
-@app.route("/api/history/list", methods=["POST", "GET"])
-def api_history_list():
-    filter_ = request.get_json(silent=True) or {}
-    return jsonify(storage_service.history_list(filter_))
-
-
-@app.route("/api/history/get", methods=["POST"])
-def api_history_get():
-    body = request.get_json(silent=True) or {}
-    return jsonify(storage_service.history_get(body.get("id")))
-
-
-@app.route("/api/history/delete", methods=["POST"])
-def api_history_delete():
-    body = request.get_json(silent=True) or {}
-    return jsonify(storage_service.history_delete(body.get("id")))
-
+# ── 检查历史 / 工时填报：路由已拆分至独立模块（模块归属见 history_api.py / workhours_api.py） ──
 
 # ── 合规检查数据收集（JSONL 按月落盘） ────────────────────────
 
@@ -345,35 +328,6 @@ def api_doc_check_upload():
     finally:
         import shutil as _shutil
         _shutil.rmtree(tmpdir, ignore_errors=True)
-
-
-# ── 工时填报检查（V3.1 并入，原 WorkingHoursTool app.exe 逻辑） ──
-
-@app.route("/api/workhours/projects", methods=["POST"])
-def api_workhours_projects():
-    """有工时计划的项目列表（今年+去年合并）。body: {cookie}"""
-    body = request.get_json(silent=True) or {}
-    cookie = (body.get("cookie") or "").strip()
-    if not cookie:
-        return jsonify({"ok": False, "error": "缺少 ITA Cookie，请先登录 ita.abc"}), 400
-    try:
-        return jsonify(workhours_service.get_projects_two_year(cookie))
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"获取工时项目失败：{e}"}), 502
-
-
-@app.route("/api/workhours/target", methods=["POST"])
-def api_workhours_target():
-    """项目成员工时填报统计（今年+去年合并）。body: {cookie, prjid}"""
-    body = request.get_json(silent=True) or {}
-    cookie = (body.get("cookie") or "").strip()
-    prjid = (body.get("prjid") or "").strip()
-    if not cookie or not prjid:
-        return jsonify({"ok": False, "error": "缺少 cookie 或 prjid"}), 400
-    try:
-        return jsonify(workhours_service.get_target_two_year(cookie, prjid))
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"获取成员工时失败：{e}"}), 502
 
 
 # ── 文档上传 / 匹配 / 重置 ──────────────────────────────────
