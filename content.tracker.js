@@ -22,6 +22,7 @@
 
   const URL_GRID = 'http://ita.abc/ita/rptWkld/bindWcydGrid';
   const URL_PROJ = 'http://ita.abc/ita/project/searchProj.action';
+  const URL_SEARCH = 'http://ita.abc/ita/project/searchProj2022.action';
   const URL_IMG = 'http://ita.abc/ita/subprocessimage.action?subprocessId=';
 
   // ── 小工具 ──
@@ -142,7 +143,6 @@
   const MOCK_PROJ = {
     PRJZH0090001: {
       projname: '账务核心系统升级项目',
-      prjManagerClurl: 'abcteams://?who=990000010&where=ITA&how=gotoSingleChat&targetUserName=冯癸&targetUsapId=990000010',
       processList: [
         { idProc: 6341400000000007, namProcDesc: '【账务核心系统升级项目】处室需求函审(第1次)', indStsProc: '正常运行' },
         { idProc: 6330400000000005, namProcDesc: '【账务核心系统升级项目】总行结项(2026年8月)', indStsProc: '完成' },
@@ -150,12 +150,18 @@
     },
     PRJZH0026003: {
       projname: '智能风控平台二期',
-      prjManagerClurl: null,
       processList: [
         { idProc: 6338439828800001, namProcDesc: '【智能风控平台二期】代码检查(第9次)', indStsProc: '正常运行' },
         { idProc: 6338400000000009, namProcDesc: '【智能风控平台二期】工作量评估', indStsProc: '正常运行' },
       ],
     },
+  };
+  // searchProj2022 概况 mock：项目1 有项目经理（周己），项目2 无（按钮隐藏场景）
+  const MOCK_OVERVIEW = {
+    '账务核心系统升级项目': [
+      { prjid: 'PRJZH0090001', projMan: '周己', projManID: 'zhouji' },
+    ],
+    '智能风控平台二期': [],
   };
 
   // ── 接口层：mock 与真实同签名 ──
@@ -211,10 +217,38 @@
     if (!d) throw new Error('项目详情为空');
     return {
       projname: d.projname || '',
-      prjManagerClurl: d.prjManagerClurl || null,
       processList: Array.isArray(d.processList) ? d.processList : [],
     };
   };
+
+  // 项目概况（searchProj2022 按项目名搜索）：取 projMan/projManID —— 补充抓包证实
+  // 该接口响应的项目经理字段才有实际值（searchProj.action 的 Clurl 人选不对）
+  const apiProjOverview = async (prjid, projname) => {
+    if (MOCK) {
+      const rows = MOCK_OVERVIEW[projname];
+      if (!rows) return { projMan: null, projManID: null };
+      const hit = rows.find((r) => r.prjid === prjid) || null;
+      return { projMan: hit ? hit.projMan : null, projManID: hit ? hit.projManID : null };
+    }
+    const body = 'bizdomain=0&projname=' + encodeURIComponent(projname) +
+      '&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=100';
+    const resp = await fetch(URL_SEARCH, {
+      method: 'POST', headers: xhrHeaders, credentials: 'include', body: body,
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const res = await resp.json();
+    const list = (res && res.data) || [];
+    const hit = list.find((r) => r.prjid === prjid) || null;
+    return {
+      projMan: (hit && hit.projMan) || null,
+      projManID: (hit && hit.projManID) || null,
+    };
+  };
+
+  // Teams 单聊深链（格式取自 ITA 抓包 Clurl；who/targetUsapId 传域账号，内网验证点）
+  const teamsUrl = (name, id) =>
+    'abcteams://?who=' + encodeURIComponent(id) + '&where=ITA&how=gotoSingleChat' +
+    '&targetUserName=' + encodeURIComponent(name) + '&targetUsapId=' + encodeURIComponent(id);
 
   const apiImage = async (idProc) => {
     if (MOCK) {
@@ -254,7 +288,7 @@
         flows.push({
           prjid: p.prjid, projname: d.projname || p.projname, projectno: p.projectno,
           idProc: proc.idProc, flowName: proc.namProcDesc || proc.namProc || ('流程 ' + proc.idProc),
-          clurl: d.prjManagerClurl || null, nodes: [], failed: false,
+          projMan: null, projManID: null, nodes: [], failed: false,
         });
       });
     });
@@ -273,6 +307,26 @@
       done += 1;
       onProgress && onProgress('正在分析流程卡点… ' + done + '/' + flows.length);
     });
+
+    // 项目经理：只对「有卡点」的项目发 searchProj2022 概况查询（该接口响应的
+    // projMan/projManID 才是实际在管的项目经理；searchProj.action 的 Clurl 人选不对）
+    const stuckPrjids = {};
+    flows.forEach((f) => { if (f.nodes.length && !f.failed) stuckPrjids[f.prjid] = f.projname; });
+    const stuckList = Object.keys(stuckPrjids);
+    if (stuckList.length) {
+      done = 0;
+      onProgress && onProgress('正在查询项目经理… 0/' + stuckList.length);
+      await mapLimit(stuckList, 3, async (prjid) => {
+        try {
+          const m = await apiProjOverview(prjid, stuckPrjids[prjid]);
+          flows.forEach((f) => {
+            if (f.prjid === prjid) { f.projMan = m.projMan; f.projManID = m.projManID; }
+          });
+        } catch (e) { /* 项目经理查询失败不阻塞：仅隐藏按钮 */ }
+        done += 1;
+        onProgress && onProgress('正在查询项目经理… ' + done + '/' + stuckList.length);
+      });
+    }
 
     const runningCount = flows.length;
     return { projects, runningCount, flows, projErr };
@@ -363,15 +417,15 @@
         (msg) => setSummary('<span class="abc-tracker__loading">' + esc(msg) + '</span>')
       );
 
-      // 概览条
+      // 概览条（数字用带类名的 span：宿主页全局样式常污染裸 <b>，导致数字与文字重叠）
       const stuckFlows = flows.filter((f) => f.nodes.length > 0);
       const stuckCount = stuckFlows.reduce((a, f) => a + f.nodes.reduce((x, n) => x + n.rows.length, 0), 0);
       setSummary(
-        '<span>参加 <b>' + projects.length + '</b> 个项目</span>' +
+        '<span class="abc-tracker__cell">参加 <span class="abc-tracker__num">' + projects.length + '</span> 个项目</span>' +
         '<span class="abc-tracker__sep">·</span>' +
-        '<span>运行中流程 <b>' + runningCount + '</b> 个</span>' +
+        '<span class="abc-tracker__cell">运行中流程 <span class="abc-tracker__num">' + runningCount + '</span> 个</span>' +
         '<span class="abc-tracker__sep">·</span>' +
-        '<span class="' + (stuckCount > 0 ? 'abc-tracker__stuck-count' : '') + '">卡点 <b>' + stuckCount + '</b> 处</span>' +
+        '<span class="abc-tracker__cell' + (stuckCount > 0 ? ' abc-tracker__stuck-count' : '') + '">卡点 <span class="abc-tracker__num">' + stuckCount + '</span> 处</span>' +
         (projErr > 0 ? '<span class="abc-tracker__sep">·</span><span class="abc-tracker__projerr">' + projErr + ' 个项目详情获取失败</span>' : '')
       );
 
@@ -423,7 +477,10 @@
           stuckHtml +
           '  </div>' +
           '  <div class="abc-tracker__actions">' +
-          (f.clurl ? '<button class="abc-tracker__btn abc-tracker__btn--primary" data-act="teams" data-clurl="' + esc(f.clurl) + '">💬 找项目经理</button>' : '') +
+          (f.projMan
+            ? '<button class="abc-tracker__btn abc-tracker__btn--primary" data-act="teams" data-clurl="' +
+              esc(teamsUrl(f.projMan, f.projManID || f.projMan)) + '">💬 项目经理·' + esc(f.projMan) + '</button>'
+            : '') +
           '<button class="abc-tracker__btn" data-act="copy" data-copy="' + esc(copyText) + '">📋 催办话术</button>' +
           '<button class="abc-tracker__btn" data-act="open" data-proc="' + esc(f.idProc) + '">流程图 ↗</button>' +
           '  </div>' +

@@ -617,9 +617,19 @@
   padding: 10px 18px; font-size: 12.5px; color: var(--abc-muted);
   background: var(--abc-panel); border-bottom: 1px solid var(--abc-border);
 }
-.abc-tracker__summary b { color: var(--abc-text); font-size: 13px; }
+/* 防御性重置：ita.abc 宿主页的全局样式会污染注入 DOM 的裸标签
+   （b/span 被设成 absolute/float 等，数字与文字即因此重叠） */
+.abc-tracker__summary span {
+  display: inline; position: static; float: none; clear: none;
+  margin: 0; padding: 0; border: 0; line-height: inherit;
+  font-size: inherit; font-weight: inherit; color: inherit; letter-spacing: normal;
+}
+.abc-tracker__summary .abc-tracker__num {
+  display: inline; position: static; float: none;
+  font-weight: 700; font-size: 13px; color: var(--abc-text); margin: 0 1px;
+}
 .abc-tracker__sep { color: var(--abc-border); }
-.abc-tracker__stuck-count, .abc-tracker__stuck-count b { color: #b71c1c; }
+.abc-tracker__stuck-count, .abc-tracker__stuck-count .abc-tracker__num { color: #b71c1c; }
 .abc-tracker__projerr { color: #b71c1c; }
 .abc-tracker__loading { color: var(--abc-muted); }
 
