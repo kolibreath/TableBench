@@ -166,19 +166,32 @@
 
   const apiGrid = async () => {
     if (MOCK) return MOCK_GRID;
-    const resp = await fetch(URL_GRID, { method: 'POST', headers: xhrHeaders, body: '', credentials: 'include' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    if (!Array.isArray(data)) throw new Error('响应格式异常');
-    // 同项目有 计划/填报 两行，按 prjid 去重
+    // 表单参数：year 必填（今年+上一年各查一次），其余可空
+    const loadYear = async (y) => {
+      const resp = await fetch(URL_GRID, {
+        method: 'POST', headers: xhrHeaders, credentials: 'include',
+        body: 'year=' + y + '&projname=&projectno=&page=&pageSize=',
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if (!Array.isArray(data)) throw new Error('响应格式异常');
+      return data;
+    };
+    const year = new Date().getFullYear();
+    const [cur, prev] = await Promise.all([
+      loadYear(year), loadYear(year - 1).catch(() => []),
+      // 上一年查询失败不阻塞：今年数据仍可用
+    ]);
+    // 两年份合并，同项目有 计划/填报 两行，按 prjid 去重
     const seen = {};
     const out = [];
-    data.forEach((r) => {
+    cur.concat(prev).forEach((r) => {
       if (r && r.prjid && !seen[r.prjid]) {
         seen[r.prjid] = 1;
         out.push({ prjid: r.prjid, projname: r.projname || '', projectno: r.projectno || '' });
       }
     });
+    if (!out.length) throw new Error('今年与上一年均未查询到项目');
     return out;
   };
 
