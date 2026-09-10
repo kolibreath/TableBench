@@ -377,11 +377,11 @@ body.is-checking {
 }
 
 .flow-card--narrow {
-  flex: 0 0 260px;
+  flex: 1 1 0;
 }
 
 .flow-card--wide {
-  flex: 1.5;
+  flex: 1 1 0;
 }
 
 .flow-card--locked {
@@ -1684,6 +1684,24 @@ body.is-checking {
 .ita-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .ita-progress { font-size: 13px; color: #409EFF; }
 
+/* ── 「？」两种途径说明 + 模式禁用态 ── */
+.ita-help {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; margin-left: 6px;
+  border: 1px solid var(--green-soft, #a5d6a7); border-radius: 50%;
+  font-size: 11px; font-weight: 700; color: var(--accent, #2e7d32);
+  cursor: help; user-select: none; vertical-align: 1px;
+}
+.ita-help:hover { background: var(--panel, #f1f8f4); }
+.ita-help__pop { font-size: 12.5px; color: #303133; line-height: 1.7; }
+.ita-help__row { margin-bottom: 8px; }
+.ita-help__row b { color: var(--accent, #2e7d32); }
+.ita-help__note { padding-top: 8px; border-top: 1px dashed rgba(0,0,0,.1); color: #909399; font-size: 12px; }
+.book-mode-btn.is-disabled {
+  opacity: .45; cursor: not-allowed; pointer-events: none;
+}
+.pg-btn--reset { margin-right: 2px; }
+
 /* ══════════ ITA 项目选择浮层（v3.2-⑤ on-the-fly） ══════════ */
 .ita-launch__trigger {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1707,7 +1725,12 @@ body.is-checking {
 
 .ita-osp { position: fixed; inset: 0; z-index: 5000; display: none; }
 .ita-osp.show { display: block; }
-.ita-osp__mask { position: absolute; inset: 0; background: rgba(27, 46, 31, 0.28); }
+.ita-osp__mask {
+  position: absolute; inset: 0;
+  background: rgba(18, 32, 21, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
 .ita-osp__panel {
   position: absolute; left: 50%; transform: translateX(-50%); top: 9vh;
   width: 620px; max-width: 92vw; max-height: 78vh; overflow-y: auto;

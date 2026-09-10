@@ -1,10 +1,13 @@
 /* estimation.ita-search.js — 「从 ITA 导入」项目选择浮层
  * ─────────────────────────────────────────────────────────
  * 交互（v3.2-⑤ on-the-fly 标准）：
- *   点击卡片上的「搜索并选择 ITA 项目」（或模式切换到 ITA 导入）→ 页面中心靠上
- *   弹出搜索浮层 → 输入 ≥2 字符自动搜索（400ms 防抖，AbortController 取消旧请求，
- *   关键字同时匹配项目名称与编号）→ 点击建议项 → 浮层内确认角色与批次 →
- *   「下载并加载到检查流程」→ 回写 Vue 根实例的 itaPayload 并调用现成的 itaLoad()。
+ *   点击卡片上的「搜索并选择 ITA 项目」→ 页面中心靠上弹出搜索浮层 →
+ *   输入 ≥2 字符自动搜索（400ms 防抖，AbortController 取消旧请求，名称/编号双匹配）→
+ *   点击建议项 → 浮层内确认角色与批次（只列 估算书/需求书 两类；批次下拉 批次1…N）→
+ *   「下载并加载到检查流程」→ 回写 Vue 根实例 itaPayload 并调用既有 itaLoad()。
+ *
+ * 悬浮球携带数据：initItaImport 调 window.__itaSearchOpenWithPayload(payload)
+ * 直接进入确认步骤（不经搜索）。
  *
  * 实现约束：不修改 estimation.js / estimation.render.js 的逻辑——浮层为独立
  * 模块，仅通过根实例（.app-root.__vue__）回写状态与调用既有方法。
@@ -35,14 +38,14 @@
     if (['wps', 'wpsx', 'doc', 'docx', 'txt', 'md'].indexOf(ext) >= 0 && /需求/i.test(name)) return 'requirement';
     return 'unknown';
   }
-  var ROLE_LABEL = { estimation: '估算书', requirement: '需求书', unknown: '忽略' };
+  var ROLE_LABEL = { estimation: '估算书', requirement: '需求书' };
 
   var state = {
     open: false,
     timer: null,
     abort: null,
     picked: null,   // {prjid, projname, projectno, projtype, status}
-    files: [],      // [{idFile,idPsn,name,size,role,batchName}]
+    files: [],      // 仅 estimation/requirement 两类
   };
 
   // ── DOM 构建（一次性） ──
@@ -65,8 +68,9 @@
       '  <div class="ita-osp__confirm" style="display:none">' +
       '    <div class="ita-osp__picked"></div>' +
       '    <table class="ita-table ita-osp__table"><thead><tr>' +
-      '      <th>文件名</th><th style="width:96px">角色</th><th style="width:104px">批次</th>' +
+      '      <th>文件名</th><th style="width:96px">类型</th><th style="width:110px">批次</th>' +
       '    </tr></thead><tbody></tbody></table>' +
+      '    <div class="ita-osp__note">仅需估算书与需求说明书两类文件，其他文档已自动过滤；需求书多个批次时在下拉中指定。</div>' +
       '    <div class="ita-osp__actions">' +
       '      <button class="el-button el-button--primary el-button--small ita-osp__load" type="button">' +
       '        <span>下载并加载到检查流程</span></button>' +
@@ -87,7 +91,7 @@
     return root;
   }
 
-  // 触发器（事件委托：render 函数产出的按钮无需逐个绑定；必须在模块初始化时注册）
+  // 触发器（事件委托：render 函数产出的按钮无需逐个绑定；模块初始化即注册）
   document.addEventListener('click', function (e) {
     if (e.target.closest && e.target.closest('.ita-launch__trigger, .ita-launch__reopen')) open();
   });
@@ -99,6 +103,7 @@
     state.files = [];
     root.classList.add('show');
     root.querySelector('.ita-osp__list').innerHTML = '';
+    root.querySelector('.ita-osp__list').style.display = '';
     root.querySelector('.ita-osp__confirm').style.display = 'none';
     root.querySelector('.ita-osp__status').textContent = MOCK_ON
       ? '已启用 ITA 模拟数据（?itaMock=1），无需连接内网' : '';
@@ -179,7 +184,38 @@
     });
   }
 
-  // ── 选择项目 → 浮层内确认角色/批次 ──
+  // ── 选择项目 → 浮层内确认（仅估算书/需求书两类） ──
+  function adoptFiles(fileList) {
+    state.files = fileList
+      .map(function (f) {
+        var name = f.namFile || f.nmlName || f.name || '';
+        return {
+          idFile: f.idFile || '',
+          idPsn: f.idPsn || '',
+          name: name,
+          size: f.fileSize || f.size || 0,
+          role: f.role || guessRole(name),
+          batchName: f.batchName || '',
+        };
+      })
+      .filter(function (f) { return f.role === 'estimation' || f.role === 'requirement'; });
+    fillBatches();
+  }
+
+  /** 需求书按顺序预填 批次1…N */
+  function fillBatches() {
+    var reqs = state.files.filter(function (f) { return f.role === 'requirement'; });
+    var n = reqs.length;
+    var i = 0;
+    state.files.forEach(function (f) {
+      if (f.role === 'requirement') {
+        i += 1;
+        if (!f.batchName) f.batchName = '批次' + i;
+      }
+    });
+    return n;
+  }
+
   function pick(prjid) {
     setStatus('正在获取项目文档列表…');
     fetch('http://ita.abc/ita/project/searchProj.action', {
@@ -190,52 +226,60 @@
     }).then(function (r) { return r.json(); }).then(function (res) {
       var detail = res && res.data && res.data[0] ? res.data[0] : null;
       var fileList = (detail && detail.fileList) || [];
-      var proj = null;
-      // 优先用搜索结果里的元数据
-      var items = root.querySelectorAll('.ita-osp__item');
-      state.picked = { prjid: prjid, projname: '', projectno: '', projtype: '', status: '' };
-      for (var i = 0; i < fileList.length; i++) { /* noop, 保持结构清晰 */ }
-      // fileList 元数据补充
-      var meta = detail || {};
-      state.picked.projname = meta.projname || state.picked.projname;
-      state.picked.projectno = meta.projectno || '';
-      state.picked.projtype = meta.projtype || '';
-      state.files = fileList.map(function (f) {
-        var name = f.namFile || f.nmlName || '';
-        return {
-          idFile: f.idFile || '',
-          idPsn: f.idPsn || '',
-          name: name,
-          size: f.fileSize || 0,
-          role: guessRole(name),
-          batchName: '',
-        };
-      });
-      // 需求书按出现顺序预填批次
-      var batchNo = 0;
-      state.files.forEach(function (f) {
-        if (f.role === 'requirement') { batchNo += 1; f.batchName = '批次' + batchNo; }
-      });
+      state.picked = {
+        prjid: prjid,
+        projname: (detail && detail.projname) || '',
+        projectno: (detail && detail.projectno) || '',
+        projtype: (detail && detail.projtype) || '',
+        status: (detail && detail.status) || '',
+      };
+      adoptFiles(fileList);
       renderConfirm();
-      setStatus('已获取 ' + state.files.length + ' 个文档，请确认角色与批次');
+      setStatus('已获取 ' + state.files.length + ' 个相关文档（已过滤其他类型），请确认类型与批次');
     }).catch(function (e) {
       setStatus('获取项目文档失败：' + (e.message || e), true);
     });
   }
 
+  /** 悬浮球携带数据直达确认步骤 */
+  window.__itaSearchOpenWithPayload = function (payload) {
+    open();
+    state.picked = {
+      prjid: payload.prjid || '',
+      projname: payload.projname || '',
+      projectno: payload.projectno || '',
+      projtype: payload.projtype || '',
+      status: '',
+    };
+    adoptFiles(payload.files || []);
+    renderConfirm();
+    setStatus('已带入 ' + state.files.length + ' 个相关文档，请确认类型与批次');
+  };
+
   function renderConfirm() {
+    var reqCount = fillBatches();
     var tb = root.querySelector('.ita-osp__table tbody');
     tb.innerHTML = state.files.map(function (f, i) {
+      var batchCell;
+      if (f.role === 'requirement') {
+        var opts = [];
+        for (var b = 1; b <= reqCount; b++) opts.push('批次' + b);
+        batchCell = '<select class="ita-select ita-osp__batch" data-i="' + i + '">' +
+          opts.map(function (o) {
+            return '<option value="' + o + '"' + (f.batchName === o ? ' selected' : '') + '>' + o + '</option>';
+          }).join('') +
+          '</select>';
+      } else {
+        batchCell = '<span class="ita-none">—</span>';
+      }
       return '<tr>' +
         '<td class="ita-osp__fname">' + esc(f.name) + '</td>' +
         '<td><select class="ita-select ita-osp__role" data-i="' + i + '">' +
-        ['estimation', 'requirement', 'unknown'].map(function (v) {
+        ['estimation', 'requirement'].map(function (v) {
           return '<option value="' + v + '"' + (f.role === v ? ' selected' : '') + '>' + ROLE_LABEL[v] + '</option>';
         }).join('') +
         '</select></td>' +
-        '<td>' + (f.role === 'requirement'
-          ? '<input class="ita-select ita-osp__batch" data-i="' + i + '" value="' + esc(f.batchName) + '">'
-          : '<span class="ita-none">—</span>') + '</td>' +
+        '<td>' + batchCell + '</td>' +
         '</tr>';
     }).join('');
     Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__role'), function (sel) {
@@ -244,14 +288,14 @@
         renderConfirm();
       });
     });
-    Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__batch'), function (inp) {
-      inp.addEventListener('input', function () {
-        state.files[Number(inp.dataset.i)].batchName = inp.value;
+    Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__batch'), function (sel) {
+      sel.addEventListener('change', function () {
+        state.files[Number(sel.dataset.i)].batchName = sel.value;
       });
     });
     root.querySelector('.ita-osp__picked').textContent =
-      '已选：' + (state.picked.projname || state.picked.prjid) +
-      (state.picked.projectno ? '（' + state.picked.projectno + '）' : '');
+      '已选：' + (state.picked && (state.picked.projname || state.picked.prjid) || '') +
+      (state.picked && state.picked.projectno ? '（' + state.picked.projectno + '）' : '');
     root.querySelector('.ita-osp__list').style.display = 'none';
     root.querySelector('.ita-osp__confirm').style.display = '';
   }
@@ -261,8 +305,8 @@
     var vm = getVm();
     if (!vm) { setStatus('无法连接检查页面状态，请刷新页面重试', true); return; }
     var est = state.files.filter(function (f) { return f.role === 'estimation'; });
-    if (est.length === 0) { setStatus('未识别到规模估算书（.xlsx/.et 且文件名含"估算"），请调整角色', true); return; }
-    if (est.length > 1) { setStatus('识别到多份估算书，请仅保留一份角色为"估算书"', true); return; }
+    if (est.length === 0) { setStatus('未识别到规模估算书（.xlsx/.et 且文件名含"估算"）', true); return; }
+    if (est.length > 1) { setStatus('识别到多份估算书，请仅保留一份"估算书"类型', true); return; }
     vm.itaPayload = {
       prjid: state.picked.prjid || '',
       projectno: state.picked.projectno || '',

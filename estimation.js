@@ -1267,6 +1267,7 @@ function ruleName(ruleId) {
 
 /** @returns {Violation[]} */
 var _runChecksRunning = false
+var _workflowGen = 0
 async function runChecks(onEngineDone) {
   if (_runChecksRunning) {
     console.warn('[runChecks] 已在执行中，跳过重复调用')
@@ -2528,6 +2529,10 @@ window.ItaExtension = {
       /** 后置检查执行状态 */
       itaRunning: false,
       itaProgress: '',
+      /** v3.2 来源锁定：'' | 'manual' | 'ita'（材料加载后锁定来源，重置解除） */
+      itaSourceLocked: '',
+      /** 入口判定：fcPendingItaImport 存在 = 悬浮球路径（Case#1/2），否则菜单路径（Case#3） */
+      itaEntryBall: false,
     }
   },
 
@@ -2567,9 +2572,13 @@ window.ItaExtension = {
         chrome.storage.local.get(['fcPendingItaImport'], function (r) {
           var payload = r.fcPendingItaImport
           if (payload && payload.files && payload.files.length) {
+            self.itaEntryBall = true
             self.itaPayload = payload
             self.itaMode = 'ita'
-            self.setStatus('已从 ITA 带入项目「' + (payload.projname || payload.prjid) + '」的 ' + payload.files.length + ' 个文档，请确认文件角色后点「下载并加载到检查流程」。', 'info')
+            self.setStatus('已从 ITA 带入项目「' + (payload.projname || payload.prjid) + '」的 ' + payload.files.length + ' 个文档，请确认角色与批次后加载。', 'info')
+            if (typeof window.__itaSearchOpenWithPayload === 'function') {
+              window.__itaSearchOpenWithPayload(payload)
+            }
           }
         })
       } catch (e) { /* 非扩展环境 */ }
@@ -2735,6 +2744,7 @@ window.ItaExtension = {
 
         // 3) 加载完成，进入第 3 步由用户执行检查
         self.itaProgress = ''
+        self.itaSourceLocked = 'ita'
         self.itaMode = 'manual'
         self.setStatus('已从 ITA 加载估算书与 ' + self.state.requireDocs.length + ' 个需求文档，请点击「执行检查」运行规则检查。', 'ok')
       } catch (e) {
@@ -3565,14 +3575,30 @@ window.__newEstimationApp({
         this.setStatus(`规模估算书读取失败：${e.message}`, 'err')
       }
     },
-    onBookFileSelected(e) {
-      const file = e && e.target && e.target.files && e.target.files[0]
-      this.loadBookFile(file)
+    /** 模式禁用（Case#1/2/3）：ITA 需悬浮球路径且手动材料未占用；手动在 ITA 材料加载后禁用 */
+    modeDisabled(mode) {
+      if (mode === 'ita') return !this.itaEntryBall || this.itaSourceLocked === 'manual'
+      if (mode === 'manual') return this.itaSourceLocked === 'ita'
+      return false
     },
-    onDropFile(e) {
+    async onBookFileSelected(e) {
+      const file = e && e.target && e.target.files && e.target.files[0]
+      await this.loadBookFile(file)
+      this.lockManualSource()
+    },
+    async onDropFile(e) {
       this.dragOver = false
       const file = e && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
-      this.loadBookFile(file)
+      await this.loadBookFile(file)
+      this.lockManualSource()
+    },
+    /** 手动材料加载成功 → 锁定 manual 来源，禁用 ITA 导入并丢弃未确认的携带数据 */
+    lockManualSource() {
+      if (this.state.bookFileName) {
+        this.itaSourceLocked = 'manual'
+        this.itaPayload = null
+        try { chrome.storage.local.remove(['fcPendingItaImport']) } catch (e) { /* 非扩展环境 */ }
+      }
     },
     onDropRequireFile(e) {
       this.requireDragOver = false
@@ -4071,7 +4097,9 @@ window.__newEstimationApp({
         // 引擎检查完成后立即展示（带 AI 加载中状态），不阻塞 UI
         var engineViolations = null
         var compareDone = false
+        var _wGen = _workflowGen
         const v = await runChecks(function (interimViolations) {
+          if (_wGen !== _workflowGen) return // 已重置，丢弃在途结果
           engineViolations = interimViolations
           self.state.violations = interimViolations
           self.state.violationMap = buildViolationMap(interimViolations)
@@ -4317,6 +4345,17 @@ window.__newEstimationApp({
           duration: 8000
         })
       }
+    },
+    /** 重置工作流：中止进行中任务 + 清空材料与检查结果 + 解除来源锁定（v3.2） */
+    async resetWorkflow() {
+      this.itaSourceLocked = ''
+      this.itaPayload = null
+      try { chrome.storage.local.remove(['fcPendingItaImport']) } catch (e) { /* 非扩展环境 */ }
+      _workflowGen++
+      await this.resetAll()
+      this.itaMode = 'manual'
+      this.currentStep = 0
+      this.setStatus('已重置上传材料与检查结果，可重新选择导入方式。', 'ok')
     },
     async resetAll() {
       this.stopAiLogSync()
