@@ -184,6 +184,9 @@
   const MOCK_PROJ = {
     PRJZH0090001: {
       projname: '账务核心系统升级项目',
+      // 角色 Clurl 组（姓名→900 工号）：「我参与的」页签按概况返回的经理姓名反查工号
+      projManClurl: 'abcteams://?who=990009001&where=ITA&how=gotoSingleChat&targetUserName=' + encodeURIComponent('周己') + '&targetUsapId=990009001',
+      techManClurl: 'abcteams://?who=990009002&where=ITA&how=gotoSingleChat&targetUserName=' + encodeURIComponent('郑辛') + '&targetUsapId=990009002',
       processList: [
         { idProc: 6341400000000007, namProcDesc: '【账务核心系统升级项目】处室需求函审(第1次)', indStsProc: '正常运行' },
         { idProc: 6330400000000005, namProcDesc: '【账务核心系统升级项目】总行结项(2026年8月)', indStsProc: '完成' },
@@ -297,7 +300,7 @@
       mockCalls.proj += 1;
       const p = MOCK_PROJ[prjid];
       if (!p) throw new Error('mock 无此项目');
-      return p;
+      return Object.assign({}, p, { clurlMap: extractClurlMap(p) });
     }
     const resp = await fetch(URL_PROJ, {
       method: 'POST', headers: xhrHeaders, credentials: 'include',
@@ -310,6 +313,7 @@
     return {
       projname: d.projname || '',
       processList: Array.isArray(d.processList) ? d.processList : [],
+      clurlMap: extractClurlMap(d), // 角色 Clurl 组（姓名→900 工号），「我参与的」反查工号用
     };
   };
 
@@ -351,7 +355,8 @@
     return resp.text();
   };
 
-  // Teams 单聊深链（格式取自 ITA 抓包 Clurl）
+  // Teams 单聊深链（格式取自 ITA 抓包 Clurl；who/targetUsapId 必须 900 开头数字工号，
+  // 域账号（yishuai 式）实测拉不起会话）
   const teamsUrl = (name, id) =>
     'abcteams://?who=' + encodeURIComponent(id) + '&where=ITA&how=gotoSingleChat' +
     '&targetUserName=' + encodeURIComponent(name) + '&targetUsapId=' + encodeURIComponent(id);
@@ -361,6 +366,22 @@
     if (!clurl) return null;
     const m = String(clurl).match(/targetUserName=([^&]+)/);
     return { name: m ? decodeURIComponent(m[1]) : '', url: String(clurl) };
+  };
+
+  // 项目详情响应的角色 Clurl 组 → { 姓名: 数字工号 } 映射。
+  // searchProj2022 概况的项目经理只有域账号（projManID=yishuai 式），
+  // 按姓名在此映射中反查 900 开头工号（详情响应本来就要查，零额外请求）
+  const extractClurlMap = (d) => {
+    const map = {};
+    if (!d || typeof d !== 'object') return map;
+    Object.keys(d).forEach((k) => {
+      const v = d[k];
+      if (typeof v !== 'string' || v.indexOf('abcteams://') !== 0) return;
+      const who = (v.match(/[?&]who=([^&]+)/) || [])[1];
+      const nm = (v.match(/targetUserName=([^&]+)/) || [])[1];
+      if (who && nm) map[decodeURIComponent(nm)] = decodeURIComponent(who);
+    });
+    return map;
   };
 
   // ── 会话级缓存（跨页签共享：详情/卡点 5 分钟，项目经理 10 分钟，清单 5 分钟） ──
@@ -395,7 +416,7 @@
             pm: pmFromClurl(r.projManClurl), // 原生数字工号深链，按钮直接用
           });
         }));
-        if (!out.length) throw new Error('未查询到我管理的项目（status=1/5）');
+        if (!out.length) return []; // 不是所有人都有在管项目：空清单走友好空态，不报错
         return out;
       },
     },
@@ -433,6 +454,7 @@
     const out = { prjid: p.prjid, projname: p.projname, projectno: p.projectno, pm: p.pm || null, flows: [], err: null };
     try {
       let processList = p.processList || null; // 职能组清单自带 processList：免详情查询
+      let clurlMap = null; // 详情响应的角色 Clurl 组（姓名→工号），供「我参与的」反查工号
       if (!processList) {
         let detail = force ? null : cached(cacheDetail, p.prjid, TTL_SHORT);
         if (!detail) {
@@ -441,6 +463,7 @@
         }
         if (detail.projname) out.projname = detail.projname;
         processList = detail.processList || [];
+        clurlMap = detail.clurlMap || null;
       }
 
       const running = processList.filter((proc) =>
@@ -466,7 +489,8 @@
         out.flows.push(f);
       });
 
-      // 项目经理：managed 来源 fetchProjects 已带原生深链；joined 来源仅对有卡点项目查概况
+      // 项目经理：managed/funcgroup 来源 fetchProjects 已带原生深链；joined 来源仅对
+      // 有卡点项目查概况（searchProj2022 只有域账号），工号从详情 Clurl 组按姓名反查
       if (!out.pm && out.flows.some((f) => f.nodes.length)) {
         let pm = force ? null : cached(cachePm, p.prjid, TTL_LONG);
         if (!pm) {
@@ -474,7 +498,9 @@
           store(cachePm, p.prjid, pm);
         }
         if (pm && pm.projMan) {
-          out.pm = { name: pm.projMan, url: teamsUrl(pm.projMan, pm.projManID || pm.projMan) };
+          const no = clurlMap ? clurlMap[pm.projMan] : null; // 900 开头数字工号
+          // 工号匹配到才给深链按钮（域账号实测拉不起 Teams）；匹配不到仅保留催办话术中的姓名
+          out.pm = no ? { name: pm.projMan, url: teamsUrl(pm.projMan, no) } : null;
         }
       }
     } catch (e) {
@@ -717,7 +743,11 @@
       if (clean > 0) {
         list.insertAdjacentHTML('beforeend', '<div class="abc-tracker__clean">另有 ' + clean + ' 个运行中流程暂无卡点</div>');
       }
-      if (!stuckFlows && !results.some((r) => r.flows.some((f) => f.failed))) {
+      if (!projects.length) {
+        // 不是所有人都有在管/参与的项目（如「我管理的」对普通成员为空）：友好空态而非报错
+        list.insertAdjacentHTML('afterbegin',
+          '<div class="abc-tracker__empty">当前没有你管理的项目——仅项目经理、运维负责人会有</div>');
+      } else if (!stuckFlows && !results.some((r) => r.flows.some((f) => f.failed))) {
         list.insertAdjacentHTML('afterbegin', allFlows
           ? '<div class="abc-tracker__empty">所有运行中流程都没有卡点 🎉</div>'
           : '<div class="abc-tracker__empty">当前没有运行中的流程 🎉</div>');
