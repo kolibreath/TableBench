@@ -29,12 +29,12 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 80px;
-  height: 80px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: var(--abc-head-grad);
   color: #fff;
-  font-size: 40px;
+  font-size: 24px;
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -65,7 +65,7 @@
    ═══════════════════════════════════════════════════════════ */
 .abc-panel {
   position: fixed;
-  bottom: 120px;
+  bottom: 92px;
   right: 24px;
   width: 480px;
   max-height: calc(100vh - 150px);
@@ -434,7 +434,7 @@
    ═══════════════════════════════════════════════════════════ */
 .abc-project-menu {
   position: fixed;
-  bottom: 120px;
+  bottom: 92px;
   right: 24px;
   width: 328px;
   background: var(--abc-bg);

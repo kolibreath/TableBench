@@ -60,21 +60,8 @@ testBtn.addEventListener('click', async () => {
     if (/^(chrome|edge|chrome-extension|about):/.test(tab.url || '')) {
       throw new Error('浏览器内部页面无法注入，请先打开一个普通网页（如 localhost 页面）');
     }
-    // 面板样式无 url() 引用，insertCSS 安全；图标字体含相对路径，用扩展绝对 URL 的 <link> 注入
-    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['content.css'] });
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (cssUrl) => {
-        if (!document.getElementById('abc-icons-css')) {
-          const link = document.createElement('link');
-          link.id = 'abc-icons-css';
-          link.rel = 'stylesheet';
-          link.href = cssUrl;
-          document.head.appendChild(link);
-        }
-      },
-      args: [chrome.runtime.getURL('vendor/icons.css')],
-    });
+    // 图标字体已内嵌为 data-URI（icons.css 自包含），与面板样式一并注入即可
+    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['vendor/icons.css', 'content.css'] });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
     testBtn.textContent = '✓ 已注入，看页面右下角悬浮球';
     setTimeout(() => window.close(), 900);

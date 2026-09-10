@@ -16,7 +16,10 @@
   // 任意页面（含本地测试页）都能跳转；扩展上下文失效时退回 window.open
   const openExtPage = (page, query) => {
     try {
-      chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: query || '' }, () => void chrome.runtime.lastError);
+      chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: query || '' }, function (resp) {
+        // 后台未就绪（扩展刚更新未重载等）→ 回退 window.open（ita.abc 在白名单内可用）
+        if (!resp || !resp.ok) window.open(chrome.runtime.getURL(page) + (query || ''), '_blank');
+      });
     } catch (e) {
       window.open(chrome.runtime.getURL(page) + (query || ''), '_blank');
     }
