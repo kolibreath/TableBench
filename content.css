@@ -612,6 +612,32 @@
 }
 .abc-tracker__close:hover { background: rgba(255, 255, 255, 0.18); }
 
+/* ── 页签头（我管理的 / 我参与的 / 职能组） ── */
+.abc-tracker__tabs {
+  flex: none; display: flex; gap: 2px; padding: 8px 14px 0;
+  background: #fff; border-bottom: 1px solid var(--abc-border);
+}
+.abc-tracker__tab {
+  padding: 8px 14px; font-size: 13px; font-family: inherit;
+  color: var(--abc-muted); background: none; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  transition: color 0.15s;
+}
+.abc-tracker__tab:hover { color: var(--abc-green); }
+.abc-tracker__tab.is-active {
+  color: var(--abc-green); font-weight: 700;
+  border-bottom-color: var(--abc-green);
+}
+.abc-tracker__pane {
+  display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0;
+}
+.abc-tracker__pane.is-active { display: flex; }
+/* 渐进分析占位行 */
+.abc-tracker__pending {
+  padding: 10px 14px; margin-bottom: 8px; font-size: 12.5px; color: var(--abc-muted);
+  background: var(--abc-panel); border-radius: 8px;
+}
+
 .abc-tracker__summary {
   flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 18px; font-size: 12.5px; color: var(--abc-muted);
