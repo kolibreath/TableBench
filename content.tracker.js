@@ -101,16 +101,16 @@
   // ── 内置自检：mock 环境加载时用抓包原文验证解析器（ITA 改版时 console 可见） ──
   const SELF_TEST_SAMPLES = [
     { // 抓包：已完成流程（第 8 次代码检查）——应无卡点
-      html: "showtasktip('申请', ' <tr><td>陈伦旺</td><td>2026-09-09 16:22:49</td><td>陈伦旺</td><td>分发代码检查填写：王依然。</td><td>2026-09-09 16:32:27</td><td>完成</td></tr>')",
+      html: "showtasktip('申请', ' <tr><td>张甲</td><td>2026-09-09 16:22:49</td><td>张甲</td><td>分发代码检查填写：李乙。</td><td>2026-09-09 16:32:27</td><td>完成</td></tr>')",
       expectNodes: 0,
     },
-    { // 抓包：运行中函审流程——申请节点江杨待处理 + 出具意见节点易天待处理（4 人并行评审）
-      html: "showtasktip('申请', ' <tr><td>江杨</td><td>2026-09-10 08:48:05</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
-        "showtasktip('指定处理人', ' <tr><td>研发中心武汉研发部开放场景金融研发团队项目集成管理员</td><td>2026-09-04 10:45:38</td><td></td><td>转处理给：谢世杰。</td><td>2026-09-04 17:39:22</td><td>完成</td></tr>')" +
-        "showtasktip('出具意见', ' <tr><td>汪宇翔</td><td>2026-09-09 15:12:00</td><td>汪宇翔</td><td>评审意见：通过。</td><td>2026-09-09 16:34:34</td><td>完成</td></tr>" +
-        "<tr><td>易天</td><td>2026-09-09 15:12:00</td><td></td><td></td><td></td><td>待处理</td></tr>')",
+    { // 抓包：运行中函审流程——申请节点赵丙待处理 + 出具意见节点吴庚待处理（4 人并行评审）
+      html: "showtasktip('申请', ' <tr><td>赵丙</td><td>2026-09-10 08:48:05</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
+        "showtasktip('指定处理人', ' <tr><td>研发中心武汉研发部开放场景金融研发团队项目集成管理员</td><td>2026-09-04 10:45:38</td><td></td><td>转处理给：钱丁。</td><td>2026-09-04 17:39:22</td><td>完成</td></tr>')" +
+        "showtasktip('出具意见', ' <tr><td>周己</td><td>2026-09-09 15:12:00</td><td>周己</td><td>评审意见：通过。</td><td>2026-09-09 16:34:34</td><td>完成</td></tr>" +
+        "<tr><td>吴庚</td><td>2026-09-09 15:12:00</td><td></td><td></td><td></td><td>待处理</td></tr>')",
       expectNodes: 2,
-      expectPersons: ['江杨', '易天'],
+      expectPersons: ['赵丙', '吴庚'],
     },
   ];
   const runSelfTest = () => {
@@ -124,28 +124,28 @@
   };
   if (MOCK) runSelfTest();
 
-  // ── mock 数据（复刻抓包真实场景：多人评审中易天未出具意见） ──
+  // ── mock 数据（复刻抓包真实场景：多人评审中吴庚未出具意见） ──
   const MOCK_HTML_REVIEW = '<html><script>' +
-    "showtasktip('申请', ' <tr><td>江杨</td><td>2026-09-10 08:48:05</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
-    "showtasktip('出具意见', ' <tr><td>汪宇翔</td><td>2026-09-09 15:12:00</td><td>汪宇翔</td><td>评审意见：通过。</td><td>2026-09-09 16:34:34</td><td>完成</td></tr>" +
-    "<tr><td>石泽远</td><td>2026-09-09 15:12:00</td><td>石泽远</td><td>评审意见：通过。</td><td>2026-09-09 15:12:26</td><td>完成</td></tr>" +
-    "<tr><td>易天</td><td>2026-09-09 15:12:00</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
+    "showtasktip('申请', ' <tr><td>赵丙</td><td>2026-09-10 08:48:05</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
+    "showtasktip('出具意见', ' <tr><td>周己</td><td>2026-09-09 15:12:00</td><td>周己</td><td>评审意见：通过。</td><td>2026-09-09 16:34:34</td><td>完成</td></tr>" +
+    "<tr><td>郑辛</td><td>2026-09-09 15:12:00</td><td>郑辛</td><td>评审意见：通过。</td><td>2026-09-09 15:12:26</td><td>完成</td></tr>" +
+    "<tr><td>吴庚</td><td>2026-09-09 15:12:00</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
     '<\/script></html>';
   const MOCK_HTML_CHECK = '<html><script>' +
-    "showtasktip('申请', ' <tr><td>江杨</td><td>" + new Date(Date.now() - 5 * 3600e3).toLocaleString('sv-SE').replace('T', ' ') + "</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
+    "showtasktip('申请', ' <tr><td>赵丙</td><td>" + new Date(Date.now() - 5 * 3600e3).toLocaleString('sv-SE').replace('T', ' ') + "</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
     '<\/script></html>';
 
   const MOCK_GRID = [
-    { prjid: 'PRJZH0025120', projname: '掌银浓情拥军专区识别军保卡项目', projectno: '科维2026-0429' },
+    { prjid: 'PRJZH0090001', projname: '账务核心系统升级项目', projectno: '科维2026-0901' },
     { prjid: 'PRJZH0026003', projname: '智能风控平台二期', projectno: 'XRK2026003' },
   ];
   const MOCK_PROJ = {
-    PRJZH0025120: {
-      projname: '掌银浓情拥军专区识别军保卡项目',
-      prjManagerClurl: 'abcteams://?who=990000010&where=ITA&how=gotoSingleChat&targetUserName=李刚&targetUsapId=990000010',
+    PRJZH0090001: {
+      projname: '账务核心系统升级项目',
+      prjManagerClurl: 'abcteams://?who=990000010&where=ITA&how=gotoSingleChat&targetUserName=冯癸&targetUsapId=990000010',
       processList: [
-        { idProc: 6341438976500007, namProcDesc: '【掌银浓情拥军专区识别军保卡项目】处室需求函审(第1次)', indStsProc: '正常运行' },
-        { idProc: 6330434019500005, namProcDesc: '【掌银浓情拥军专区识别军保卡项目】总行结项(2026年8月)', indStsProc: '完成' },
+        { idProc: 6341400000000007, namProcDesc: '【账务核心系统升级项目】处室需求函审(第1次)', indStsProc: '正常运行' },
+        { idProc: 6330400000000005, namProcDesc: '【账务核心系统升级项目】总行结项(2026年8月)', indStsProc: '完成' },
       ],
     },
     PRJZH0026003: {
@@ -205,7 +205,7 @@
 
   const apiImage = async (idProc) => {
     if (MOCK) {
-      if (idProc === 6341438976500007) return MOCK_HTML_REVIEW;
+      if (idProc === 6341400000000007) return MOCK_HTML_REVIEW;
       if (idProc === 6338439828800001) return MOCK_HTML_CHECK;
       return '<html></html>'; // 工作量评估：运行中但无卡点（验证折叠行）
     }
