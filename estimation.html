@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>项目规模估算书合规检查工具</title>
   <link rel="stylesheet" href="./vendor/element-ui/theme-chalk/index.css" />
+  <link rel="stylesheet" href="./common/page.css" />
   <link rel="stylesheet" href="./estimation.css" />
   <link rel="stylesheet" href="./common/bg.css" />
 </head>
@@ -18,17 +19,22 @@
   </div>
   <div id="app" class="app" v-cloak>
     <el-container>
-      <el-header class="app-header" height="64px">
-        <div class="app-header__left">
-          <div class="app-header__title-row">
-            <span class="pg-mark app-mark">项</span>
-            <span class="app-header__title">项目规模估算书合规检查工具</span>
-            <el-popover placement="bottom-start" width="360" trigger="click">
-              <div slot="reference" class="app-header__version-tag" :class="{ 'app-header__version-tag--update': updateAvailable }" @click.stop="checkForUpdate()" title="点击检查更新">
-                <span class="app-header__version-label">v{{ currentVersion || '2.1.0.1' }}</span>
-                <span v-if="updateAvailable" class="app-header__version-dot" title="发现新版本"></span>
-                <i class="el-icon-arrow-down app-header__version-icon"></i>
-              </div>
+      <header class="pg-header est-header">
+        <span class="pg-mark">项</span>
+        <div class="pg-titles">
+          <div class="pg-name">规模估算书合规检查</div>
+          <div class="pg-sub">14 条规则 + AI 双引擎 · 支持手动上传与 ITA 导入</div>
+        </div>
+        <div class="pg-actions">
+          <div v-if="aiCheckBanner.text" class="ai-check-banner" :class="'ai-check-banner--' + aiCheckBanner.type">
+            {{ aiCheckBanner.text }}
+          </div>
+          <el-popover placement="bottom-start" width="360" trigger="click">
+            <div slot="reference" class="app-header__version-tag" :class="{ 'app-header__version-tag--update': updateAvailable }" @click.stop="checkForUpdate()" title="点击检查更新">
+              <span class="app-header__version-label">v{{ currentVersion || '2.1.0.1' }}</span>
+              <span v-if="updateAvailable" class="app-header__version-dot" title="发现新版本"></span>
+              <i class="el-icon-arrow-down app-header__version-icon"></i>
+            </div>
               <div class="app-header__changelog">
                 <div class="changelog-title">版本更新说明</div>
                 <div class="changelog-item">
@@ -49,13 +55,7 @@
                   </ul>
                 </div>
               </div>
-            </el-popover>
-          </div>
-        </div>
-        <div class="app-header__right">
-          <div v-if="aiCheckBanner.text" class="ai-check-banner" :class="'ai-check-banner--' + aiCheckBanner.type">
-            {{ aiCheckBanner.text }}
-          </div>
+          </el-popover>
           <el-popover placement="bottom-end" width="380" trigger="click" v-model="aiConfigPopVisible">
             <div slot="reference" class="header-config-btn">
               <i class="el-icon-setting"></i>
@@ -79,7 +79,7 @@
           </div>
         </el-popover>
       </div>
-      </el-header>
+      </header>
 
 
 
@@ -1060,6 +1060,7 @@
   <script src="./vendor/mammoth.min.js"></script>
   <script src="./vendor/sortable.min.js"></script>
   <script src="./vendor/element-ui/index.min.js"></script>
+  <script src="./estimation.mock.js"></script>
   <script src="./common/store.js"></script>
   <script src="./estimation.render.js"></script>
   <script src="./estimation.js"></script>

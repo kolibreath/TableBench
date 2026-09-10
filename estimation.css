@@ -56,49 +56,14 @@ body.is-checking {
 
 /* ===== 背景动画已迁移至 common/bg.css（纯 CSS 合成器版） ===== */
 
-/* ===== Header ===== */
-.app-header {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  padding: 0 24px !important;
-}
-
-.app-header__left {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-}
-
-.app-header__title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.app-header__title {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: 0.5px;
-}
-
-.app-header__right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-header .ai-check-banner {
+/* ===== Header（结构=common/page.css 的 pg-header；此处仅本页子件适配） ===== */
+.est-header .ai-check-banner {
   margin: 0;
   max-width: none;
   padding: 4px 10px;
   font-size: 12px;
   white-space: nowrap;
+  border-radius: 8px;
 }
 
 .app-header__version-tag {
@@ -381,9 +346,9 @@ body.is-checking {
 
 /* ===== Main ===== */
 .app-main {
-  padding: 24px !important;
-  max-width: 1060px;
-  margin: 0 auto;
+  padding: 0 !important;
+  max-width: none;
+  margin: 0;
 }
 
 /* ===== Steps ===== */
@@ -399,8 +364,15 @@ body.is-checking {
 
 .flow-cards {
   display: flex;
+  flex-wrap: wrap;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+/* ITA 导入模式：文件确认表需要完整宽度——第一卡占满整行，步骤 2/3 顺延到下一行 */
+.flow-cards--ita .flow-card--narrow {
+  flex: 1 1 100%;
+  max-width: none;
 }
 
 .flow-card {
@@ -1739,46 +1711,15 @@ body.is-checking {
 .ita-inline__hint { margin-top: 8px; font-size: 12px; color: #5a6b5c; line-height: 1.6; }
 
 
-/* ══════════ V3.0.1：页头统一品牌（深林绿渐变 + Logo 标记） ══════════ */
-/* V3.2：对齐 common/page.css pg-header 卡片形态——圆角 14px + 右上斜切光带 */
-.app-header {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius);
-  background: linear-gradient(135deg, #1b5e20, #2e7d32) !important;
-  border-bottom: none !important;
-  box-shadow: 0 4px 16px rgba(27, 94, 32, 0.22) !important;
-}
-.app-header::after {
-  content: "";
-  position: absolute;
-  right: -30px;
-  top: -38px;
-  width: 110px;
-  height: 110px;
-  background: rgba(255, 255, 255, 0.07);
-  transform: rotate(28deg);
-  border-radius: 22px;
-  pointer-events: none;
-}
-.app-header .app-header__title { color: #fff; font-weight: 700; letter-spacing: 0.02em; }
-.app-mark {
-  width: 38px; height: 38px; border-radius: 11px;
-  background: linear-gradient(135deg, #245c28, #2e7d32);
-  border: 1px solid rgba(255, 255, 255, 0.30);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 17px; font-weight: 700; color: #fff; flex-shrink: 0;
-  margin-right: 10px;
-}
-.app-header .app-header__version-tag {
+/* ══════════ 页头子件适配（pg-header 深绿横幅上的半透明胶囊 / 幽灵按钮） ══════════ */
+.est-header .app-header__version-tag {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.32);
   color: #fff;
 }
-.app-header .app-header__version-tag .app-header__version-label { color: #fff; }
-.app-header .app-header__version-tag .app-header__version-icon { color: rgba(255, 255, 255, 0.85); }
-.app-header .app-header__version-tag--update { background: rgba(249, 168, 37, 0.30); border-color: rgba(249, 168, 37, 0.55); }
-.app-header .header-config-btn { color: #fff; }
-.app-header .header-config-btn:hover { background: rgba(255, 255, 255, 0.14); }
-.app-header .config-dot { background: #f9a825; }
+.est-header .app-header__version-tag .app-header__version-label { color: #fff; }
+.est-header .app-header__version-tag .app-header__version-icon { color: rgba(255, 255, 255, 0.85); }
+.est-header .app-header__version-tag--update { background: rgba(249, 168, 37, 0.30) !important; border-color: rgba(249, 168, 37, 0.55) !important; }
+.est-header .header-config-btn { color: #fff; border-color: rgba(255, 255, 255, 0.32); border-radius: 8px; }
+.est-header .header-config-btn:hover { background: rgba(255, 255, 255, 0.14); color: #fff; border-color: rgba(255, 255, 255, 0.5); }
+.est-header .config-dot { background: #f9a825; }
