@@ -6,7 +6,6 @@
   <title>检查历史 - 项目管理工具箱</title>
   <link rel="stylesheet" href="vendor/icons.css">
   <link rel="stylesheet" href="common/page.css">
-  <link rel="stylesheet" href="common/bg.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -38,6 +37,16 @@
     .proj-chip .chip-close { cursor: pointer; color: #5a6b5c; font-size: 13px; }
     .proj-chip .chip-close:hover { color: #c62828; }
 
+    /* ── 台账页签：列表 / 统计 ── */
+    .tabs { display: inline-flex; background: #e8f5e9; border: 1px solid #a5d6a7; padding: 3px; border-radius: 10px; gap: 2px; }
+    .tab-btn {
+      border: none; background: transparent; padding: 7px 20px; border-radius: 8px;
+      font-family: inherit; font-size: 13px; font-weight: 600; color: #5a6b5c; cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+    .tab-btn:hover { color: #2e7d32; }
+    .tab-btn.active { background: #2e7d32; color: #fff; box-shadow: 0 2px 6px rgba(46, 125, 50, .3); }
+
     table.list { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden;
       box-shadow: 0 2px 8px rgba(0,0,0,.05); font-size: 13px; }
     table.list th, table.list td { padding: 11px 12px; border-bottom: 1px solid rgba(0, 0, 0, 0.05); text-align: left; vertical-align: middle; }
@@ -46,8 +55,6 @@
     .type-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; white-space: nowrap; }
     .type-est-ita { background: #fff8e1; color: #f9a825; border: 1px solid #ffe082; }
     .type-est-manual { background: #e8f5e9; color: #43a047; border: 1px solid #a5d6a7; }
-    .type-doc-check { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
-    .type-workhours { background: #f0f5ff; color: #2f54eb; border: 1px solid #adc6ff; }
     .proj-name { font-weight: 600; }
     .proj-sub { font-size: 12px; color: #5a6b5c; margin-top: 2px; }
     .v-num { font-weight: 700; }
@@ -58,6 +65,56 @@
     .row-actions button { margin-right: 6px; }
     .empty { text-align: center; padding: 60px 20px; color: #5a6b5c; background: #fff; border-radius: 10px; }
     .source-tag { font-size: 12px; color: #5a6b5c; }
+
+    /* ══════════ 统计看板：估算检查台账 ══════════ */
+    #statsArea { display: none; }
+    .stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+    .scard {
+      background: #fff; border-radius: 10px; padding: 16px 18px;
+      border-top: 3px solid #2e7d32; box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+    }
+    .scard .num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 27px; font-weight: 700; line-height: 1.15; color: #1b5e20; }
+    .scard .lbl { font-size: 12px; color: #5a6b5c; margin-top: 3px; }
+    .scard.accent { background: linear-gradient(135deg, #1b5e20, #2e7d32); border-top: none; }
+    .scard.accent .num { color: #fff; }
+    .scard.accent .lbl { color: rgba(255, 255, 255, .78); }
+
+    .board-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .panel {
+      background: #fff; border-radius: 10px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+      grid-column: span 1;
+    }
+    .panel.wide { grid-column: span 2; }
+    .panel h3 {
+      font-size: 13.5px; font-weight: 600; color: #1b2e1f; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel h3::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: linear-gradient(180deg, #2e7d32, #43a047); }
+    .panel h3 .lg { margin-left: auto; display: flex; gap: 12px; font-weight: 400; font-size: 11.5px; color: #5a6b5c; }
+    .lg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+    /* 月度柱状：前置浅绿 × 后置深绿，堆叠 */
+    .chart-cols { display: flex; align-items: stretch; gap: 8px; height: 190px; }
+    .col { flex: 1; display: flex; flex-direction: column; }
+    .col .plot { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+    .col .val { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: #5a6b5c; margin-bottom: 3px; }
+    .stack { width: 24px; max-height: 100%; display: flex; flex-direction: column-reverse; border-radius: 4px 4px 0 0; overflow: hidden; }
+    .stack .seg-ita { background: #2e7d32; }
+    .stack .seg-manual { background: #a5d6a7; }
+    .col .mon { font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: #8a9a8c; text-align: center; margin-top: 6px; white-space: nowrap; }
+    .axis-note { font-size: 11px; color: #8a9a8c; margin-top: 8px; }
+
+    /* 违规趋势 SVG 折线 */
+    .trend-svg { width: 100%; height: auto; display: block; }
+
+    /* TOP 横条 */
+    .hbar-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+    .hbar-row .rank { font-family: ui-monospace, Menlo, monospace; font-size: 11px; font-weight: 700; color: #a5d6a7; width: 16px; flex-shrink: 0; }
+    .hbar-row .hlabel { font-size: 12.5px; color: #1b2e1f; width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .hbar-row .track { flex: 1; height: 14px; background: #f1f8f4; border-radius: 7px; overflow: hidden; }
+    .hbar-row .fill { height: 100%; border-radius: 7px; background: linear-gradient(90deg, #2e7d32, #43a047); min-width: 3px; }
+    .hbar-row.fill-must .fill { background: linear-gradient(90deg, #b71c1c, #e53935); }
+    .hbar-row .hval { font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 700; color: #1b5e20; width: 30px; text-align: right; flex-shrink: 0; }
 
     /* 详情抽屉 */
     .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 50; }
@@ -93,25 +150,22 @@
     <span class="pg-mark">项</span>
     <div class="pg-titles">
       <div class="pg-name">检查历史</div>
-      <div class="pg-sub">项目管理工具箱 · 检查记录本地留痕（IndexedDB + 本地服务双写），可回溯与导出</div>
+      <div class="pg-sub">规模估算书合规检查台账 · 记录留痕、回溯与统计（IndexedDB + 本地服务双写）</div>
     </div>
     <div class="pg-actions">
       <button class="pg-btn" id="refreshBtn"><i class="el-icon-refresh"></i>刷新</button>
-      <button class="pg-btn" id="exportBtn"><i class="el-icon-download"></i>导出 JSONL</button>
       <button class="pg-btn danger" id="clearBtn"><i class="el-icon-delete"></i>清空历史</button>
     </div>
   </header>
 
   <div class="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="list">列表</button>
+      <button class="tab-btn" data-tab="stats">统计</button>
+    </div>
     <span class="proj-chip" id="projChip" style="display:none">
       项目：<b id="projChipName"></b><span class="chip-close" id="projChipClose" title="清除项目过滤">✕</span>
     </span>
-    <select id="typeFilter">
-      <option value="__ALL__">全部类型</option>
-      <option value="estimation">估算书合规检查</option>
-      <option value="doc_check">项目文档检查</option>
-      <option value="workhours">工时填报检查</option>
-    </select>
     <select id="sourceFilter">
       <option value="__ALL__">全部来源</option>
       <option value="ita">后置（ITA）</option>
@@ -123,6 +177,32 @@
   </div>
 
   <div id="listArea"><div class="empty">加载中…</div></div>
+
+  <!-- 统计看板：估算检查台账（数据 = 全部估算检查记录；项目深链时收敛到该项目） -->
+  <div id="statsArea">
+    <div class="stat-cards" id="statCards"></div>
+    <div class="board-grid">
+      <div class="panel wide">
+        <h3>月度检查趋势
+          <span class="lg"><span><i style="background:#a5d6a7"></i>前置（手动）</span><span><i style="background:#2e7d32"></i>后置（ITA）</span></span>
+        </h3>
+        <div class="chart-cols" id="monthCols"></div>
+        <div class="axis-note">近 12 个月；柱上数字为当月总检查次数。</div>
+      </div>
+      <div class="panel">
+        <h3>违规趋势（必须 / 建议）</h3>
+        <div id="trendWrap"></div>
+      </div>
+      <div class="panel">
+        <h3>TOP 问题规则</h3>
+        <div id="topRules"></div>
+      </div>
+      <div class="panel wide">
+        <h3>TOP 问题项目 <span style="font-weight:400;font-size:11.5px;color:#5a6b5c">按违例总数（必须 + 建议 + AI）</span></h3>
+        <div id="topProjects"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="drawer-mask" id="drawerMask" style="display:none"></div>
   <div class="drawer" id="drawer" style="display:none">

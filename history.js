@@ -1,10 +1,12 @@
-// 检查历史页面脚本
-// 列表 / 筛选 / 详情 / 删除 / 导出；数据源优先后端 SQLite，回退 IndexedDB（common/store.js）
+// 检查历史页面脚本（模块归属：检查历史）
+// 范围：仅规模估算书合规检查记录（type=estimation；doc_check/workhours 照常入库但不在本页展示）
+// 结构：「列表 / 统计」双 Tab；统计 = 估算检查台账看板（月度趋势 / 违规趋势 / TOP 规则 / TOP 项目）
+// 数据源优先后端 SQLite，回退 IndexedDB（common/store.js）
 
 document.addEventListener('DOMContentLoaded', () => {
   const listArea = document.getElementById('listArea');
+  const statsArea = document.getElementById('statsArea');
   const statsBox = document.getElementById('statsBox');
-  const typeFilter = document.getElementById('typeFilter');
   const sourceFilter = document.getElementById('sourceFilter');
   const keywordInput = document.getElementById('keywordInput');
   const drawerMask = document.getElementById('drawerMask');
@@ -15,16 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-  const typeTag = (r) => {
-    if (r.type === 'estimation') {
-      return r.source === 'ita'
-        ? '<span class="type-tag type-est-ita">估算检查·后置</span>'
-        : '<span class="type-tag type-est-manual">估算检查·前置</span>';
-    }
-    if (r.type === 'doc_check') return '<span class="type-tag type-doc-check">项目文档检查</span>';
-    if (r.type === 'workhours') return '<span class="type-tag type-workhours">工时检查</span>';
-    return '<span class="type-tag">' + esc(r.type || '未知') + '</span>';
-  };
+  const sourceTag = (r) => r.source === 'ita'
+    ? '<span class="type-tag type-est-ita">后置（ITA）</span>'
+    : '<span class="type-tag type-est-manual">前置（手动）</span>';
 
   const fileNames = (r) => (r.files || []).map((f) => f.name).filter(Boolean);
 
@@ -39,42 +34,53 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── 列表 ──
-  const loadList = async () => {
-    listArea.innerHTML = '<div class="empty">加载中…</div>';
-    const filter = {
-      type: typeFilter.value,
-      source: sourceFilter.value,
-      keyword: (keywordInput.value || '').trim(),
-    };
-    let { records, source } = await HistoryStore.list(filter);
+  // ── 基础数据：全部估算检查记录（列表/统计共用；列表再叠加来源+关键字过滤） ──
+  let baseRecords = [];
+  let baseSource = '';
+  let currentTab = 'list';
 
-    // 项目深链过滤（历史记录的 project.prjid）
-    if (prjidFilter) {
-      records = records.filter((r) => r.project && String(r.project.prjid || '') === String(prjidFilter));
+  const loadBase = async () => {
+    const { records, source } = await HistoryStore.list({ type: 'estimation' });
+    baseRecords = prjidFilter
+      ? records.filter((r) => r.project && String(r.project.prjid || '') === String(prjidFilter))
+      : records;
+    baseSource = source;
+  };
+
+  // ── 列表 ──
+  const loadList = () => {
+    const kw = (keywordInput.value || '').trim().toLowerCase();
+    let records = baseRecords;
+    if (sourceFilter.value !== '__ALL__') {
+      records = records.filter((r) => r.source === sourceFilter.value);
+    }
+    if (kw) {
+      records = records.filter((r) => {
+        const hay = JSON.stringify({
+          n: r.project && r.project.projname,
+          p: r.project && r.project.projectno,
+          f: (r.files || []).map((x) => x.name).join(','),
+        }).toLowerCase();
+        return hay.includes(kw);
+      });
     }
 
     if (!records.length) {
-      listArea.innerHTML = '<div class="empty">暂无检查记录。运行「规模估算书合规检查」或「项目工作台 · 文档检查」后会自动留存。</div>';
+      listArea.innerHTML = '<div class="empty">暂无估算检查记录。运行「规模估算书合规检查」（前置或后置）后会自动留存。</div>';
       statsBox.innerHTML = '';
       return;
     }
 
-    // 统计条：共 N 条 · 本月检查 · 不通过 · 覆盖项目
+    // 统计条：共 N 条 · 本月检查 · 强制违例 · 覆盖项目
     const now = new Date();
     const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
     const monthCount = records.filter((r) => String(r.time || '').slice(0, 7) === curMonth).length;
-    const failCount = records.reduce((s, r) => {
-      const sm = r.summary || {};
-      if (r.type === 'doc_check') return s + (sm.fail || 0);
-      if (r.type === 'workhours') return s + (sm.fail || 0);
-      return s + (sm.must || 0);
-    }, 0);
+    const mustCount = records.reduce((s, r) => s + ((r.summary || {}).must || 0), 0);
     const projSet = new Set(records.map((r) => r.project && r.project.projname).filter(Boolean));
     statsBox.innerHTML = `
-      <span>共 <b>${records.length}</b> 条（${source === 'backend' ? '本地服务' : '浏览器本地'}）</span>
+      <span>共 <b>${records.length}</b> 条（${baseSource === 'backend' ? '本地服务' : '浏览器本地'}）</span>
       <span>本月检查 <b>${monthCount}</b> 次</span>
-      <span>不通过 <b class="v-must">${failCount}</b> 项</span>
+      <span>强制违例 <b class="v-must">${mustCount}</b> 项</span>
       <span>覆盖项目 <b>${projSet.size}</b> 个</span>`;
 
     const rows = records.map((r) => {
@@ -87,21 +93,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const mustCls = s.must ? 'v-num v-must' : 'v-num v-zero';
       const sugCls = s.suggest ? 'v-num v-suggest' : 'v-num v-zero';
       const aiCls = s.ai ? 'v-num v-ai' : 'v-num v-zero';
-      const vioCell = r.type === 'workhours'
-        ? `<span class="${s.fail ? 'v-num v-must' : 'v-num v-zero'}">${s.fail || 0}</span> 人不达标`
-        : `<span class="${mustCls}">${s.must || 0}</span> /
-            <span class="${sugCls}">${s.suggest || 0}</span>
-            ${r.type === 'estimation' ? ' / <span class="' + aiCls + '">' + (s.ai || 0) + '</span>' : ''}`;
       return `
         <tr data-id="${r.id == null ? '' : r.id}">
           <td style="white-space:nowrap">${esc(r.time || '-')}</td>
-          <td>${typeTag(r)}</td>
+          <td>${sourceTag(r)}</td>
           <td>
             <div class="proj-name">${esc(name)}</div>
             <div class="proj-sub">${sub || '&nbsp;'}</div>
           </td>
           <td>${esc(r.ruleVersion || '—')}</td>
-          <td style="white-space:nowrap">${vioCell}</td>
+          <td style="white-space:nowrap">
+            <span class="${mustCls}">${s.must || 0}</span> /
+            <span class="${sugCls}">${s.suggest || 0}</span> /
+            <span class="${aiCls}">${s.ai || 0}</span>
+          </td>
           <td>${r.durationSec != null ? r.durationSec + 's' : '-'}</td>
           <td class="row-actions" style="white-space:nowrap">
             <button class="btn ghost btn-detail">详情</button>
@@ -115,10 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
         <thead>
           <tr>
             <th style="width:150px">时间</th>
-            <th style="width:110px">类型</th>
+            <th style="width:110px">来源</th>
             <th>项目 / 文件</th>
             <th style="width:80px">规则版本</th>
-            <th style="width:130px">违例（强制/建议/AI）</th>
+            <th style="width:120px">违例（强制/建议/AI）</th>
             <th style="width:70px">耗时</th>
             <th style="width:150px">操作</th>
           </tr>
@@ -126,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <tbody>${rows}</tbody>
       </table>`;
 
-    // 事件绑定
     listArea.querySelectorAll('tr[data-id]').forEach((tr) => {
       const idRaw = tr.dataset.id;
       const id = idRaw === '' ? null : Number(idRaw);
@@ -134,10 +138,162 @@ document.addEventListener('DOMContentLoaded', () => {
       tr.querySelector('.btn-del').addEventListener('click', async () => {
         if (!window.confirm('确认删除该条检查记录？')) return;
         await HistoryStore.remove(id);
-        loadList();
+        await refresh();
       });
     });
   };
+
+  // ══════════ 统计看板：估算检查台账 ══════════
+
+  const lastMonths = (n) => {
+    const out = [];
+    const d = new Date();
+    d.setDate(1);
+    for (let i = n - 1; i >= 0; i--) {
+      const t = new Date(d.getFullYear(), d.getMonth() - i, 1);
+      out.push(t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0'));
+    }
+    return out;
+  };
+
+  const monthOf = (r) => String(r.time || '').slice(0, 7);
+
+  const renderStats = () => {
+    const recs = baseRecords;
+    if (!recs.length) {
+      statsArea.innerHTML = '<div class="empty">暂无估算检查记录，统计看板将在首次检查后生成。</div>';
+      return;
+    }
+
+    // ① 指标卡：总检查 / 本月（accent）/ 强制违例累计 / AI 不匹配累计
+    const now = new Date();
+    const curMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const total = recs.length;
+    const monthCount = recs.filter((r) => monthOf(r) === curMonth).length;
+    const mustTotal = recs.reduce((s, r) => s + ((r.summary || {}).must || 0), 0);
+    const aiTotal = recs.reduce((s, r) => s + ((r.summary || {}).ai || 0), 0);
+    document.getElementById('statCards').innerHTML = `
+      <div class="scard"><div class="num">${total}</div><div class="lbl">累计检查（条）</div></div>
+      <div class="scard accent"><div class="num">${monthCount}</div><div class="lbl">本月检查（${esc(curMonth)}）</div></div>
+      <div class="scard"><div class="num">${mustTotal}</div><div class="lbl">强制违例累计（项）</div></div>
+      <div class="scard"><div class="num">${aiTotal}</div><div class="lbl">AI 不匹配累计（项）</div></div>`;
+
+    // ② 月度检查趋势（近 12 个月，前置/后置堆叠柱）
+    const months = lastMonths(12);
+    const byMonth = {};
+    months.forEach((m) => { byMonth[m] = { manual: 0, ita: 0 }; });
+    recs.forEach((r) => {
+      const m = monthOf(r);
+      if (byMonth[m]) byMonth[m][r.source === 'ita' ? 'ita' : 'manual']++;
+    });
+    const maxMonth = Math.max(1, ...months.map((m) => byMonth[m].manual + byMonth[m].ita));
+    document.getElementById('monthCols').innerHTML = months.map((m) => {
+      const d = byMonth[m];
+      const totalM = d.manual + d.ita;
+      const h = (v) => (totalM ? (v / maxMonth) * 100 : 0);
+      return `
+        <div class="col">
+          <div class="plot">
+            ${totalM ? `<div class="val">${totalM}</div>` : ''}
+            <div class="stack" style="height:${totalM ? (totalM / maxMonth) * 82 : 1}%"
+                 title="${m} 前置 ${d.manual} 次 · 后置 ${d.ita} 次">
+              ${d.ita ? `<div class="seg-ita" style="height:${(h(d.ita) / (totalM / maxMonth) || 0)}%"></div>` : ''}
+              ${d.manual ? `<div class="seg-manual" style="height:${(h(d.manual) / (totalM / maxMonth) || 0)}%"></div>` : ''}
+            </div>
+          </div>
+          <div class="mon">${m.slice(5)}月</div>
+        </div>`;
+    }).join('');
+
+    // ③ 违规趋势（SVG 双折线：必须 / 建议）
+    const trendMust = months.map((m) => {
+      const mm = recs.filter((r) => monthOf(r) === m);
+      return mm.reduce((s, r) => s + ((r.summary || {}).must || 0), 0);
+    });
+    const trendSug = months.map((m) => {
+      const mm = recs.filter((r) => monthOf(r) === m);
+      return mm.reduce((s, r) => s + ((r.summary || {}).suggest || 0), 0);
+    });
+    const W = 560, H = 150, PADL = 26, PADB = 18, PADT = 10;
+    const yMax = Math.max(1, ...trendMust, ...trendSug);
+    const xAt = (i) => PADL + (i * (W - PADL - 8)) / (months.length - 1);
+    const yAt = (v) => PADT + (1 - v / yMax) * (H - PADT - PADB);
+    const line = (arr) => arr.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(' ');
+    const dots = (arr, color) => arr.map((v, i) =>
+      `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="3" fill="#fff" stroke="${color}" stroke-width="2"><title>${months[i]}：${v}</title></circle>`).join('');
+    document.getElementById('trendWrap').innerHTML = `
+      <svg class="trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="违规趋势折线图">
+        <line x1="${PADL}" y1="${yAt(0)}" x2="${W - 8}" y2="${yAt(0)}" stroke="rgba(0,0,0,.12)" stroke-width="1"/>
+        <text x="4" y="${yAt(0) + 3}" font-size="9" fill="#8a9a8c">0</text>
+        <text x="4" y="${yAt(yMax) + 3}" font-size="9" fill="#8a9a8c">${yMax}</text>
+        ${months.map((m, i) => (i % 2 === 0
+          ? `<text x="${xAt(i)}" y="${H - 4}" font-size="9" fill="#8a9a8c" text-anchor="middle">${m.slice(5)}月</text>` : '')).join('')}
+        <polyline points="${line(trendMust)}" fill="none" stroke="#c62828" stroke-width="2"/>
+        <polyline points="${line(trendSug)}" fill="none" stroke="#f9a825" stroke-width="2"/>
+        ${dots(trendMust, '#c62828')}${dots(trendSug, '#f9a825')}
+      </svg>
+      <div class="axis-note" style="display:flex;gap:14px">
+        <span><i class="lg-i" style="display:inline-block;width:9px;height:2px;background:#c62828;vertical-align:middle;margin-right:4px"></i>必须项</span>
+        <span><i style="display:inline-block;width:9px;height:2px;background:#f9a825;vertical-align:middle;margin-right:4px"></i>建议项</span>
+        <span>纵轴上限 ${yMax}</span>
+      </div>`;
+
+    // ④ TOP 问题规则（违例条数，含 AI）
+    const ruleCount = {};
+    recs.forEach((r) => {
+      ((r.detail && r.detail.violations) || []).forEach((v) => {
+        const key = v.source === 'ai' ? 'AI 比对' : (v.ruleId ? '规则 ' + v.ruleId : '未标注');
+        ruleCount[key] = (ruleCount[key] || 0) + 1;
+      });
+    });
+    const topRules = Object.entries(ruleCount).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const maxRule = Math.max(1, ...topRules.map(([, c]) => c));
+    document.getElementById('topRules').innerHTML = topRules.length
+      ? topRules.map(([label, c], i) => `
+          <div class="hbar-row">
+            <span class="rank">${String(i + 1).padStart(2, '0')}</span>
+            <span class="hlabel" title="${esc(label)}">${esc(label)}</span>
+            <div class="track"><div class="fill" style="width:${(c / maxRule) * 100}%"></div></div>
+            <span class="hval">${c}</span>
+          </div>`).join('')
+      : '<div class="axis-note">暂无违例明细（记录可能为摘要）。</div>';
+
+    // ⑤ TOP 问题项目（按违例总数 must+suggest+ai）
+    const projCount = {};
+    recs.forEach((r) => {
+      const s = r.summary || {};
+      const v = (s.must || 0) + (s.suggest || 0) + (s.ai || 0);
+      const key = (r.project && (r.project.projname || r.project.prjid)) || fileNames(r)[0] || '未标注项目';
+      projCount[key] = (projCount[key] || 0) + v;
+    });
+    const topProj = Object.entries(projCount).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const maxProj = Math.max(1, ...topProj.map(([, c]) => c));
+    document.getElementById('topProjects').innerHTML = topProj.length
+      ? topProj.map(([label, c], i) => `
+          <div class="hbar-row fill-must">
+            <span class="rank">${String(i + 1).padStart(2, '0')}</span>
+            <span class="hlabel" title="${esc(label)}">${esc(label)}</span>
+            <div class="track"><div class="fill" style="width:${(c / maxProj) * 100}%"></div></div>
+            <span class="hval">${c}</span>
+          </div>`).join('')
+      : '<div class="axis-note">各项目均无违例，保持得很好。</div>';
+  };
+
+  // ── Tab 切换 ──
+  const applyTab = () => {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === currentTab));
+    const isList = currentTab === 'list';
+    listArea.style.display = isList ? '' : 'none';
+    statsArea.style.display = isList ? 'none' : 'block';
+    // 统计视图下隐藏列表专属筛选（来源/关键字）
+    sourceFilter.style.display = isList ? '' : 'none';
+    keywordInput.style.display = isList ? '' : 'none';
+    document.getElementById('searchBtn').style.display = isList ? '' : 'none';
+    if (!isList) renderStats();
+  };
+  document.querySelectorAll('.tab-btn').forEach((b) => {
+    b.addEventListener('click', () => { currentTab = b.dataset.tab; applyTab(); });
+  });
 
   // ── 详情 ──
   const openDetail = async (id, records) => {
@@ -166,77 +322,38 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="item"><b>${esc(rec.ruleVersion || '—')}</b><br>规则版本</div>
         <div class="item"><b class="${s.must ? 'v-must' : ''}">${s.must || 0}</b><br>强制</div>
         <div class="item"><b class="${s.suggest ? 'v-suggest' : ''}">${s.suggest || 0}</b><br>建议</div>
-        ${rec.type === 'estimation' ? `<div class="item"><b class="${s.ai ? 'v-ai' : ''}">${s.ai || 0}</b><br>AI</div>` : ''}
+        <div class="item"><b class="${s.ai ? 'v-ai' : ''}">${s.ai || 0}</b><br>AI</div>
         <div class="item"><b>${rec.durationSec != null ? rec.durationSec + 's' : '-'}</b><br>耗时</div>
       </div>
       ${proj.projname ? `<p style="font-size:13px;color:#555">项目：${esc(proj.projname)}（${esc(proj.projectno || '-')}）</p>` : ''}
       ${fileNames(rec).length ? `<p style="font-size:13px;color:#555">文件：${esc(fileNames(rec).join('、'))}</p>` : ''}
     `;
 
-    // 估算检查：违例表（按 Sheet+行）
+    // 违例表（按 Sheet+行）
     const violations = (rec.detail && rec.detail.violations) || [];
-    let vioHtml = '';
-    if (rec.type === 'estimation') {
-      const groups = {};
-      violations.forEach((v) => {
-        const key = (v.sheet || '?') + '|' + (v.row || '?');
-        (groups[key] = groups[key] || []).push(v);
-      });
-      const rowsHtml = Object.keys(groups).sort((a, b) => {
-        const [sa, ra] = a.split('|'); const [sb, rb] = b.split('|');
-        return sa === sb ? (Number(ra) || 0) - (Number(rb) || 0) : sa.localeCompare(sb, 'zh');
-      }).map((key) => {
-        const items = groups[key];
-        const lines = items.map((v) => {
-          const cls = v.source === 'ai' ? 'badge-skip' : (v.type === '强制' ? 'badge-fail' : 'badge-pass');
-          const tag = v.source === 'ai' ? '[AI] ' : (v.ruleId ? '[规则' + esc(v.ruleId) + '] ' : '');
-          return `<div><span class="${cls}">${v.type === '强制' ? '✗' : '?'}</span> ${tag}${esc(v.message || v.text || '')}</div>` +
-            (v.reason ? `<div class="ai-reason">AI 分析原因：${esc(v.reason)}</div>` : '');
-        }).join('');
-        return `<tr><td style="white-space:nowrap">${esc(items[0].sheet || '?')}</td><td>${esc(items[0].row || '?')}</td><td>${lines}</td></tr>`;
+    const groups = {};
+    violations.forEach((v) => {
+      const key = (v.sheet || '?') + '|' + (v.row || '?');
+      (groups[key] = groups[key] || []).push(v);
+    });
+    const rowsHtml = Object.keys(groups).sort((a, b) => {
+      const [sa, ra] = a.split('|'); const [sb, rb] = b.split('|');
+      return sa === sb ? (Number(ra) || 0) - (Number(rb) || 0) : sa.localeCompare(sb, 'zh');
+    }).map((key) => {
+      const items = groups[key];
+      const lines = items.map((v) => {
+        const cls = v.source === 'ai' ? 'badge-skip' : (v.type === '强制' ? 'badge-fail' : 'badge-pass');
+        const tag = v.source === 'ai' ? '[AI] ' : (v.ruleId ? '[规则' + esc(v.ruleId) + '] ' : '');
+        return `<div><span class="${cls}">${v.type === '强制' ? '✗' : '?'}</span> ${tag}${esc(v.message || v.text || '')}</div>` +
+          (v.reason ? `<div class="ai-reason">AI 分析原因：${esc(v.reason)}</div>` : '');
       }).join('');
-      vioHtml = `
-        <div class="detail-sec-title">违例明细（${violations.length} 条）</div>
-        ${violations.length ? `<table class="vio"><thead><tr><th style="width:150px">Sheet</th><th style="width:60px">行</th><th>说明</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
-          : '<p style="color:#52c41a;font-size:13px">本次检查未发现违例。</p>'}`;
-    }
+      return `<tr><td style="white-space:nowrap">${esc(items[0].sheet || '?')}</td><td>${esc(items[0].row || '?')}</td><td>${lines}</td></tr>`;
+    }).join('');
 
-    // 项目自查：文档卡片结果
-    const docs = (rec.detail && rec.detail.documents) || [];
-    let docHtml = '';
-    if (rec.type === 'doc_check') {
-      docHtml = `<div class="detail-sec-title">自查结果（${docs.length} 份文档）</div>` + (docs.map((d) => {
-        const results = (d.results || []).map((r) => {
-          const cls = r.status === '通过' ? 'badge-pass' : (r.status === '不通过' ? 'badge-fail' : 'badge-skip');
-          return `<div style="margin:4px 0"><span class="${cls}">[${esc(r.status)}]</span> ${esc(r.op)}：${esc(r.detail || '')}</div>` +
-            (r.example ? `<div style="color:#999;font-size:12px">依据：${esc(r.example)}</div>` : '');
-        }).join('');
-        return `<div style="border:1px solid #eef1f6;border-radius:8px;padding:10px 12px;margin-bottom:8px">
-            <b style="font-size:13px">${esc(d.name)}</b> <span class="source-tag">${esc(d.checkType || '')}</span>
-            ${d.error ? `<div class="badge-fail">打开失败：${esc(d.error)}</div>` : results}
-          </div>`;
-      }).join('') || '<p style="color:#999;font-size:13px">无明细（记录为摘要）</p>');
-    }
-
-    // 工时检查：成员完成率表
-    const whMembers = (rec.detail && rec.detail.members) || [];
-    let whHtml = '';
-    if (rec.type === 'workhours') {
-      const tol = (rec.detail && rec.detail.tolerance) != null ? rec.detail.tolerance : 3;
-      const rowsHtml = whMembers.map((m) => {
-        const cls = m.achievement_rate < 100 - tol ? 'badge-fail'
-          : (m.achievement_rate > 100 + tol ? 'badge-skip' : 'badge-pass');
-        return `<tr><td>${esc(m.name || '-')}</td><td>${esc(m.id || '')}@abchina.com.cn</td>
-            <td style="text-align:right">${m.completed_amt}</td><td style="text-align:right">${m.target_amt}</td>
-            <td><span class="${cls}">${m.achievement_rate}%</span></td></tr>`;
-      }).join('');
-      whHtml = `
-        <div class="detail-sec-title">成员工时（误差线 ±${tol}%，共 ${whMembers.length} 人）</div>
-        ${whMembers.length ? `<table class="vio"><thead><tr><th>姓名</th><th>邮箱</th><th style="width:100px">已填报</th><th style="width:100px">目标</th><th style="width:80px">完成率</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
-          : '<p style="color:#999;font-size:13px">无成员明细。</p>'}`;
-    }
-
-    return head + vioHtml + docHtml + whHtml;
+    return head + `
+      <div class="detail-sec-title">违例明细（${violations.length} 条）</div>
+      ${violations.length ? `<table class="vio"><thead><tr><th style="width:150px">Sheet</th><th style="width:60px">行</th><th>说明</th></tr></thead><tbody>${rowsHtml}</tbody></table>`
+        : '<p style="color:#52c41a;font-size:13px">本次检查未发现违例。</p>'}`;
   };
 
   const closeDrawer = () => {
@@ -249,25 +366,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── 工具栏 ──
   document.getElementById('searchBtn').addEventListener('click', loadList);
   keywordInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') loadList(); });
-  typeFilter.addEventListener('change', loadList);
   sourceFilter.addEventListener('change', loadList);
-  document.getElementById('refreshBtn').addEventListener('click', loadList);
-
-  document.getElementById('exportBtn').addEventListener('click', async () => {
-    const jsonl = await HistoryStore.exportJsonl();
-    const blob = new Blob([jsonl || ''], { type: 'application/jsonl' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = '检查历史_' + new Date().toISOString().slice(0, 10) + '.jsonl';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  });
-
+  document.getElementById('refreshBtn').addEventListener('click', refresh);
   document.getElementById('clearBtn').addEventListener('click', async () => {
     if (!window.confirm('确认清空全部检查历史？此操作不可恢复。')) return;
     await HistoryStore.remove(null);
-    loadList();
+    await refresh();
   });
 
-  loadList();
+  async function refresh() {
+    await loadBase();
+    if (currentTab === 'list') loadList();
+    else renderStats();
+  }
+
+  refresh();
 });
