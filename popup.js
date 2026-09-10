@@ -64,7 +64,7 @@ testBtn.addEventListener('click', async () => {
     // 测试注入打上标记：跳转估算检查页时自动带 ?itaMock=1（外网调试沙箱）
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['vendor/icons.css', 'content.css'] });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { window.__abcTestInject = true; } });
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js', 'content.tracker.js'] });
     testBtn.textContent = '✓ 已注入，看页面右下角悬浮球';
     setTimeout(() => window.close(), 900);
   } catch (e) {

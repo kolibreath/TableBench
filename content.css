@@ -553,3 +553,123 @@
   transition: background 0.2s, color 0.2s;
 }
 .abc-project-workbench:hover { background: var(--abc-green); color: #fff; }
+
+/* ═══════════════════════════════════════════════════════════
+   进度跟踪浮层（content.tracker.js）——居中大面板，形态同估算页 ITA 选择浮层
+   卡点条目：项目 → 流程 → 「环节 → 卡点人 + 等待时长」三级信息
+   ═══════════════════════════════════════════════════════════ */
+.abc-tracker {
+  --abc-green-deep: #1b5e20;
+  --abc-green: #2e7d32;
+  --abc-green-bright: #43a047;
+  --abc-green-soft: #a5d6a7;
+  --abc-bg: #e8f5e9;
+  --abc-panel: #f1f8f4;
+  --abc-text: #1b2e1f;
+  --abc-muted: #5a6b5c;
+  --abc-border: rgba(0, 0, 0, 0.08);
+  --abc-radius: 14px;
+  --abc-shadow: 0 10px 32px rgba(27, 46, 31, 0.22);
+  position: fixed; inset: 0; z-index: 1000001; display: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.abc-tracker.show { display: block; }
+.abc-tracker__mask {
+  position: absolute; inset: 0;
+  background: rgba(15, 35, 20, 0.55); backdrop-filter: blur(3px);
+}
+.abc-tracker__panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 48px)); max-height: min(76vh, 720px);
+  display: flex; flex-direction: column;
+  background: #fff; border-radius: var(--abc-radius);
+  box-shadow: var(--abc-shadow); overflow: hidden;
+}
+.abc-tracker__head {
+  display: flex; align-items: center; gap: 8px; flex: none;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  color: #fff;
+}
+.abc-tracker__logo { font-size: 17px; line-height: 1; }
+.abc-tracker__title { font-size: 15px; font-weight: 700; letter-spacing: 0.5px; }
+.abc-tracker__mockbadge {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.35);
+}
+.abc-tracker__refresh {
+  margin-left: auto; font-size: 16px; line-height: 1; cursor: pointer;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; transition: background 0.15s;
+}
+.abc-tracker__refresh:hover { background: rgba(255, 255, 255, 0.18); }
+.abc-tracker__refresh.is-busy { animation: abc-tracker-spin 0.9s linear infinite; pointer-events: none; }
+@keyframes abc-tracker-spin { to { transform: rotate(360deg); } }
+.abc-tracker__close {
+  font-size: 14px; cursor: pointer; width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; transition: background 0.15s;
+}
+.abc-tracker__close:hover { background: rgba(255, 255, 255, 0.18); }
+
+.abc-tracker__summary {
+  flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 18px; font-size: 12.5px; color: var(--abc-muted);
+  background: var(--abc-panel); border-bottom: 1px solid var(--abc-border);
+}
+.abc-tracker__summary b { color: var(--abc-text); font-size: 13px; }
+.abc-tracker__sep { color: var(--abc-border); }
+.abc-tracker__stuck-count, .abc-tracker__stuck-count b { color: #b71c1c; }
+.abc-tracker__projerr { color: #b71c1c; }
+.abc-tracker__loading { color: var(--abc-muted); }
+
+.abc-tracker__list { flex: 1; overflow-y: auto; padding: 12px 18px 16px; }
+.abc-tracker__item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px; margin-bottom: 10px;
+  border: 1px solid var(--abc-border); border-left: 3px solid #e0a800;
+  border-radius: 8px; background: #fff;
+}
+.abc-tracker__item--failed { border-left-color: var(--abc-border); }
+.abc-tracker__item-main { flex: 1; min-width: 0; }
+.abc-tracker__proj { font-size: 11.5px; color: var(--abc-muted); margin-bottom: 2px; }
+.abc-tracker__flow { font-size: 13.5px; font-weight: 700; color: var(--abc-text); line-height: 1.5; }
+.abc-tracker__stuck-line {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin-top: 7px; padding: 5px 9px;
+  background: #fff8e1; border-radius: 6px; font-size: 12.5px;
+}
+.abc-tracker__node { font-weight: 600; color: #7a5c00; }
+.abc-tracker__arrow { color: #b8860b; }
+.abc-tracker__person {
+  font-weight: 700; color: #b71c1c;
+  padding: 1px 8px; background: #fff; border: 1px solid #f0c4c4; border-radius: 999px;
+}
+.abc-tracker__dur { color: var(--abc-muted); font-size: 12px; }
+.abc-tracker__dur.is-late { color: #b71c1c; font-weight: 600; }
+.abc-tracker__failed-note { margin-top: 6px; font-size: 12px; color: var(--abc-muted); }
+.abc-tracker__actions {
+  flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+}
+.abc-tracker__btn {
+  padding: 5px 12px; font-size: 12px; font-family: inherit;
+  background: #fff; color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft); border-radius: 6px;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+}
+.abc-tracker__btn:hover { background: var(--abc-panel); }
+.abc-tracker__btn--primary {
+  background: var(--abc-green); color: #fff; border-color: var(--abc-green);
+}
+.abc-tracker__btn--primary:hover { background: var(--abc-green-bright); }
+.abc-tracker__clean {
+  margin-top: 4px; padding: 8px 14px; font-size: 12px; color: var(--abc-muted);
+  background: var(--abc-panel); border-radius: 8px;
+}
+.abc-tracker__empty {
+  padding: 48px 0; text-align: center; font-size: 14px; color: var(--abc-muted);
+}
+.abc-tracker__error {
+  margin: 8px 0; padding: 12px 14px; font-size: 13px; line-height: 1.7;
+  color: #b71c1c; background: #fdecea; border: 1px solid #f5c6cb; border-radius: 8px;
+}

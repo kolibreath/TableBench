@@ -42,7 +42,7 @@
   "content_scripts": [
     {
       "matches": ["http://ita.abc/*"],
-      "js": ["content.js"],
+      "js": ["content.js", "content.tracker.js"],
       "css": ["vendor/icons.css", "content.css"],
       "run_at": "document_end"
     }
