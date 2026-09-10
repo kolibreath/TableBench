@@ -107,17 +107,6 @@ const refreshSvc = () => {
 };
 refreshSvc();
 
-// 数据收集开关（合规检查数据上报，见开发文档 4.5）
-const collectSwitch = document.getElementById('collectSwitch');
-const renderCollect = (on) => {
-  collectSwitch.textContent = '收集：' + (on ? '开' : '关');
-};
-chrome.storage.local.get(['fcCollectEnabled'], (r) => {
-  renderCollect(r.fcCollectEnabled !== false); // 默认开启
-});
-collectSwitch.addEventListener('click', () => {
-  chrome.storage.local.get(['fcCollectEnabled'], (r) => {
-    const next = r.fcCollectEnabled === false; // 关 → 开
-    chrome.storage.local.set({ fcCollectEnabled: next }, () => renderCollect(next));
-  });
-});
+// 数据收集：恒开启（产品决定移除开关），底栏仅作状态说明
+const collectNote = document.getElementById('collectNote');
+collectNote.textContent = '数据收集：开';

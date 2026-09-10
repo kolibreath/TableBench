@@ -211,16 +211,11 @@
   // ── 数据收集上报（开发文档 4.5） ─────────────────────────────
 
   /**
-   * 上报合规检查数据。
+   * 上报合规检查数据（恒开启：产品决定移除用户开关，popup 仅保留状态说明）。
    * @param {object} payload 完整报告（meta/book/requires/project/run/stats/violations）
    */
   async function reportCollect(payload) {
     try {
-      const enabled = await new Promise((resolve) => {
-        global.chrome.storage.local.get(['fcCollectEnabled'], (r) =>
-          resolve(r.fcCollectEnabled !== false)); // 默认开启
-      });
-      if (!enabled) return { skipped: true };
       const body = Object.assign({
         reportId: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
         extVersion: (chrome.runtime.getManifest() || {}).version || '',
