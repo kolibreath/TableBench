@@ -1,37 +1,23 @@
-// popup：台账式工具清单（编号 01-04 对应工作流：项目工作台 → 估算书把关 → 工时把关 → 留痕）
-// 配色与功能点估算工具同源（绿色系）；图标为 Element UI 本地字体图标
+// popup：台账式工具清单（形态定位见 docs/项目管理工具箱_迭代规划.md 第 0 章）
+// popup 仅承载「不依赖 ITA 上下文」的完整页面入口；项目查询 / 工时填报 / 项目工作台
+// 需要ITA 信息，属于悬浮球面板形态或 ITA 页面内入口，不在 popup 清单中。
 
-// 统一后端地址（与 content.js/workbench.js/workhours.js 保持一致）
+// 统一后端地址（与 content.js/workbench.js 保持一致）
 const BACKEND_URL = 'http://127.0.0.1:8765';
 
-// 四大工具模块（项目自查 + 项目入库已整合为「项目工作台」；工时检查 V3.1 并入统一后端）
 const TOOLS = [
   {
     idx: '01',
-    icon: 'el-icon-folder-opened',
-    name: '项目工作台',
-    desc: '项目文档检查 + 按产生阶段归档下载，一次搞定',
-    page: 'workbench.html',
-  },
-  {
-    idx: '02',
     icon: 'el-icon-magic-stick',
     name: '规模估算书合规检查',
     desc: '14 条规则 + AI 双引擎，支持手动上传与 ITA 导入',
     page: 'estimation.html',
   },
   {
-    idx: '03',
-    icon: 'el-icon-data-analysis',
-    name: '工时填报检查',
-    desc: '结项前成员工时填报误差检查，一键导出提醒名单',
-    page: 'workhours.html',
-  },
-  {
-    idx: '04',
+    idx: '02',
     icon: 'el-icon-time',
     name: '检查历史',
-    desc: '检查记录本地留痕、回溯与导出',
+    desc: '检查记录本地留痕、回溯与查看',
     page: 'history.html',
   },
 ];
@@ -62,6 +48,41 @@ TOOLS.forEach((t) => {
 
 // 版本号
 document.getElementById('ver').textContent = 'v' + chrome.runtime.getManifest().version;
+
+// ── 悬浮球测试入口：把 content 脚本注入当前页（本地页面即可预览 UI 形态） ──
+// 依赖 activeTab 权限：点击扩展图标即授予当前标签页的临时注入权。
+const testBtn = document.getElementById('testBallBtn');
+testBtn.addEventListener('click', async () => {
+  testBtn.disabled = true;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) throw new Error('未找到当前标签页');
+    if (/^(chrome|edge|chrome-extension|about):/.test(tab.url || '')) {
+      throw new Error('浏览器内部页面无法注入，请先打开一个普通网页（如 localhost 页面）');
+    }
+    // 面板样式无 url() 引用，insertCSS 安全；图标字体含相对路径，用扩展绝对 URL 的 <link> 注入
+    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['content.css'] });
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: (cssUrl) => {
+        if (!document.getElementById('abc-icons-css')) {
+          const link = document.createElement('link');
+          link.id = 'abc-icons-css';
+          link.rel = 'stylesheet';
+          link.href = cssUrl;
+          document.head.appendChild(link);
+        }
+      },
+      args: [chrome.runtime.getURL('vendor/icons.css')],
+    });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+    testBtn.textContent = '✓ 已注入，看页面右下角悬浮球';
+    setTimeout(() => window.close(), 900);
+  } catch (e) {
+    testBtn.textContent = '✕ ' + (e.message || e);
+    testBtn.disabled = false;
+  }
+});
 
 // 本地后端健康状态（统一 8765 服务）
 const svcDot = document.getElementById('svcDot');

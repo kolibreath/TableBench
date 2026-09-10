@@ -1,0 +1,98 @@
+/* ═══════════════════════════════════════════════════════════
+   项目管理工具 · 统一背景动画（纯 CSS 合成器版）
+   ─────────────────────────────────────────────────────────────
+   替代原 Canvas rAF 方案（background-animation.js，已删除）：
+   只动 transform / opacity，由浏览器合成器线程渲染，
+   与主线程完全解耦——低端机解析大表格时背景不掉帧。
+
+   引入方式：
+     <link rel="stylesheet" href="common/bg.css">
+     <body> 首个子元素：
+     <div class="fc-bg" aria-hidden="true">
+       <div class="fc-bg__track fc-bg__track--a"><i></i><i></i><i></i></div>
+       <div class="fc-bg__track fc-bg__track--b"><i></i><i></i><i></i></div>
+       <div class="fc-bg__track fc-bg__track--c"><i></i><i></i><i></i></div>
+     </div>
+   ═══════════════════════════════════════════════════════════ */
+
+.fc-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -9999;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 轨道：超宽横条旋转 -28deg，子矩形沿轨道 translateX 漂移
+   （旋转容器 + 单轴位移 = 对角线运动，且动画只含一个 transform 函数） */
+.fc-bg__track {
+  position: absolute;
+  left: -60vw;
+  width: 220vw;
+  height: 200px;
+  transform: rotate(-28deg);
+}
+.fc-bg__track--a { top: 4%; }
+.fc-bg__track--b { top: 38%; }
+.fc-bg__track--c { top: 72%; }
+
+.fc-bg__track i {
+  position: absolute;
+  display: block;
+  border-radius: 22px;
+  will-change: transform, opacity;
+  animation: fc-drift linear infinite;
+}
+.fc-bg__track--a i { top: 30px; }
+.fc-bg__track--b i { top: 96px; }
+.fc-bg__track--c i { top: 10px; }
+
+/* 三条轨道各 3 个矩形：尺寸 / 透明度 / 时长 / 负延迟错开，
+   负延迟让矩形在加载瞬间就分布满轨道（无空场起步） */
+.fc-bg__track i:nth-child(1) {
+  width: 300px; height: 84px;
+  background: rgba(46, 125, 50, 0.07);
+  animation-duration: 34s;
+  animation-delay: 0s;
+}
+.fc-bg__track i:nth-child(2) {
+  width: 190px; height: 56px;
+  background: rgba(160, 185, 205, 0.09);
+  animation-duration: 27s;
+  animation-delay: -11s;
+}
+.fc-bg__track i:nth-child(3) {
+  width: 240px; height: 68px;
+  background: rgba(46, 125, 50, 0.05);
+  animation-duration: 31s;
+  animation-delay: -22s;
+}
+.fc-bg__track--b i:nth-child(1) { animation-delay: -7s; }
+.fc-bg__track--b i:nth-child(2) { animation-delay: -19s; }
+.fc-bg__track--c i:nth-child(2) { animation-delay: -4s; }
+.fc-bg__track--c i:nth-child(3) { animation-delay: -15s; }
+
+/* 漂移：对角线（左下 → 右上），进出视口时淡入淡出 */
+@keyframes fc-drift {
+  from { transform: translateX(-45vw); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  to   { transform: translateX(135vw); opacity: 0; }
+}
+
+/* 减弱动态效果偏好：静态化（保留淡色矩形，停止漂移） */
+@media (prefers-reduced-motion: reduce) {
+  .fc-bg__track i {
+    animation: none;
+    opacity: 0.5;
+  }
+  .fc-bg__track--a i:nth-child(1) { left: 18vw; }
+  .fc-bg__track--a i:nth-child(2) { left: 64vw; }
+  .fc-bg__track--a i:nth-child(3) { left: 120vw; }
+  .fc-bg__track--b i:nth-child(1) { left: 40vw; }
+  .fc-bg__track--b i:nth-child(2) { left: 96vw; }
+  .fc-bg__track--b i:nth-child(3) { left: 150vw; }
+  .fc-bg__track--c i:nth-child(1) { left: 8vw; }
+  .fc-bg__track--c i:nth-child(2) { left: 78vw; }
+  .fc-bg__track--c i:nth-child(3) { left: 132vw; }
+}

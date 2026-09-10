@@ -16,17 +16,21 @@
     "Courier New", monospace;
 }
 
-.app {
+/* Vue 2 挂载会把 #app 节点整个替换掉，class="app" 不存在于渲染结果——
+   列宽约束必须落在实际渲染的根元素 .el-container 上，否则页头通栏贴边 */
+.app,
+.el-container {
   background: transparent;
   color: var(--text);
   font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
   min-height: 100vh;
   max-width: 1200px;
-  padding: 28px 18px 60px;
+  padding: 20px 28px 60px;
   margin: 0 auto;
   position: relative;
   z-index: 0;
+  box-sizing: border-box;
 }
 
 html,
@@ -50,17 +54,7 @@ body.is-checking {
   display: none;
 }
 
-/* ===== 背景轨道式动画 ===== */
-.bg-layer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: -9999;
-  pointer-events: none;
-  overflow: hidden;
-}
+/* ===== 背景动画已迁移至 common/bg.css（纯 CSS 合成器版） ===== */
 
 /* ===== Header ===== */
 .app-header {
@@ -1746,10 +1740,26 @@ body.is-checking {
 
 
 /* ══════════ V3.0.1：页头统一品牌（深林绿渐变 + Logo 标记） ══════════ */
+/* V3.2：对齐 common/page.css pg-header 卡片形态——圆角 14px + 右上斜切光带 */
 .app-header {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
   background: linear-gradient(135deg, #1b5e20, #2e7d32) !important;
   border-bottom: none !important;
   box-shadow: 0 4px 16px rgba(27, 94, 32, 0.22) !important;
+}
+.app-header::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -38px;
+  width: 110px;
+  height: 110px;
+  background: rgba(255, 255, 255, 0.07);
+  transform: rotate(28deg);
+  border-radius: 22px;
+  pointer-events: none;
 }
 .app-header .app-header__title { color: #fff; font-weight: 700; letter-spacing: 0.02em; }
 .app-mark {

@@ -12,6 +12,16 @@
   const API_URL = 'http://ita.abc/ita/project/searchProj2022.action';
   const API_DETAIL_URL = 'http://ita.abc/ita/project/searchProj.action';
 
+  // 统一经后台打开扩展页：tabs.create 不受 web_accessible_resources origin 白名单限制，
+  // 任意页面（含本地测试页）都能跳转；扩展上下文失效时退回 window.open
+  const openExtPage = (page, query) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: query || '' }, () => void chrome.runtime.lastError);
+    } catch (e) {
+      window.open(chrome.runtime.getURL(page) + (query || ''), '_blank');
+    }
+  };
+
   // ================= 下载地址配置 =================
   // 下载接口：http://ita.abc/ita/downloadFileById.action?idFile=xxx&idPsn=xxx
   const buildDownloadUrl = (file) => {
@@ -48,7 +58,7 @@
     };
     try {
       chrome.storage.local.set({ fcPendingWorkbench: payload }, () => {
-        window.open(chrome.runtime.getURL('workbench.html'), '_blank');
+        openExtPage('workbench.html');
       });
     } catch (e) {
       (fileList || []).forEach((f) => {
@@ -66,7 +76,7 @@
       projectno: proj.projectno || '',
       projtype: proj.projtype || '',
     });
-    window.open(chrome.runtime.getURL('workbench.html') + '?' + q.toString(), '_blank');
+    openExtPage('workbench.html', '?' + q.toString());
   };
 
   // 自动从浏览器获取 ita.abc 的 cookie
@@ -128,16 +138,14 @@
   `;
 
   const panel = document.createElement('div');
-  panel.className = 'abc-project-panel';
+  panel.className = 'abc-panel abc-panel--query';
   panel.innerHTML = `
-    <div class="abc-project-panel-header">
-      <span class="abc-project-panel-title">
-        <span class="abc-project-panel-badge">📦</span>
-        <span>项目查询</span>
-      </span>
-      <span class="abc-project-panel-close">✕</span>
+    <div class="abc-panel-head">
+      <span class="abc-panel-logo">📦</span>
+      <span class="abc-panel-title">项目查询</span>
+      <span class="abc-panel-close">✕</span>
     </div>
-    <div class="abc-project-panel-body" id="abc-project-body">
+    <div class="abc-panel-body" id="abc-project-body">
       <div class="abc-project-search-row">
         <input type="text" id="abc-project-input" placeholder="请输入项目名称">
         <button class="abc-project-btn" id="abc-project-search">查询</button>
@@ -154,7 +162,7 @@
   const input = panel.querySelector('#abc-project-input');
   const searchBtn = panel.querySelector('#abc-project-search');
   const resultDiv = panel.querySelector('#abc-project-result');
-  const closeBtn = panel.querySelector('.abc-project-panel-close');
+  const closeBtn = panel.querySelector('.abc-panel-close');
   const panelBody = panel.querySelector('#abc-project-body');
   const toTopBtn = panel.querySelector('#abc-project-totop');
 
@@ -171,7 +179,7 @@
       return;
     }
     if (conf.page) {
-      window.open(chrome.runtime.getURL(conf.page), '_blank');
+      openExtPage(conf.page);
       menu.classList.remove('show');
     }
   });
@@ -208,7 +216,7 @@
     };
     try {
       chrome.storage.local.set({ fcPendingItaImport: payload }, () => {
-        window.open(chrome.runtime.getURL('estimation.html?mode=ita'), '_blank');
+        openExtPage('estimation.html?mode=ita');
       });
     } catch (e) {
       alert('发起合规检查失败：' + e.message);

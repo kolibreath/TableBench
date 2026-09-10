@@ -2945,10 +2945,6 @@ window.__newEstimationApp({
     await this.apiReset()
     await this.apiCleanupTemp()
     await this.checkAiOnMount()
-    // 初始化背景轨道动画（resize 监听由 BgAnimation.init() 内部注册管理）
-    if (window.BgAnimation) {
-      window.BgAnimation.init()
-    }
     var self = this
     this.$nextTick(function () { self._initSortable() })
 
@@ -2956,12 +2952,6 @@ window.__newEstimationApp({
     this.ensureBackendRunning().then(function () {
       self.initVersionCheck()
     })
-  },
-  beforeDestroy() {
-    // 清理背景动画（解绑 resize 监听、取消 rAF、移除 DOM 元素）
-    if (window.BgAnimation) {
-      window.BgAnimation.destroy()
-    }
   },
   computed: {
     statusClass() {
@@ -3401,12 +3391,6 @@ window.__newEstimationApp({
       },
     },
     // 思考动画显隐由 aiThinkingPhase 标志位控制（idle/thinking/done）
-    // 背景轨道动画：loading → 快速，其余 → 慢速
-    statusKind(newVal) {
-      if (window.BgAnimation) {
-        window.BgAnimation.setSpeed(newVal === 'loading' ? 1.0 : 0.0)
-      }
-    },
   },
   methods: {
     colToLetter,

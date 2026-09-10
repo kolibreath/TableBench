@@ -1,4 +1,30 @@
-/* 悬浮图标样式 */
+/* ═══════════════════════════════════════════════════════════════
+   项目管理工具箱 · ITA 页面注入样式（悬浮球 / 菜单 / 面板骨架）
+   ─────────────────────────────────────────────────────────────
+   设计令牌与 common/page.css（扩展页面）同源：绿色台账风。
+   令牌挂在各注入容器根上（--abc- 前缀），避免污染宿主页面。
+   面板骨架：.abc-panel > .abc-panel-head / .abc-panel-body / .abc-panel-foot
+   查询面板（abc-panel--query）是骨架的第一个使用者；工时面板（v3.2）复用同一骨架。
+   ═══════════════════════════════════════════════════════════════ */
+
+.abc-project-floating-icon,
+.abc-project-menu,
+.abc-panel {
+  --abc-green-deep: #1b5e20;
+  --abc-green: #2e7d32;
+  --abc-green-bright: #43a047;
+  --abc-green-soft: #a5d6a7;
+  --abc-bg: #e8f5e9;
+  --abc-panel: #f1f8f4;
+  --abc-text: #1b2e1f;
+  --abc-muted: #5a6b5c;
+  --abc-border: rgba(0, 0, 0, 0.08);
+  --abc-radius: 14px;
+  --abc-shadow: 0 10px 32px rgba(27, 46, 31, 0.22);
+  --abc-head-grad: linear-gradient(135deg, #1b5e20, #2e7d32);
+}
+
+/* ── 悬浮球：绿色台账风（与菜单/页面同源） ── */
 .abc-project-floating-icon {
   position: fixed;
   bottom: 24px;
@@ -6,7 +32,7 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: #3a8ee6;
+  background: var(--abc-head-grad);
   color: #fff;
   font-size: 40px;
   font-weight: bold;
@@ -15,99 +41,128 @@
   justify-content: center;
   cursor: pointer;
   z-index: 999999;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
+  box-shadow: 0 4px 14px rgba(27, 94, 32, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.18);
   user-select: none;
   transition: transform 0.2s, box-shadow 0.2s;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   box-sizing: border-box;
 }
 .abc-project-floating-icon:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.6);
+  transform: scale(1.08);
+  box-shadow: 0 6px 18px rgba(27, 94, 32, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 .abc-project-floating-icon .icon-text {
   line-height: 1;
 }
 
-/* 展开面板 */
-.abc-project-panel {
+/* ═══════════════════════════════════════════════════════════
+   面板骨架（悬浮球弹出层的统一容器）
+   .abc-panel        定位容器 + 卡片壳（默认宽度，工时面板等轻面板直接用）
+   .abc-panel--query 查询面板宽体修饰符
+   .abc-panel-head   深绿渐变头（logo 徽标 + 标题 + 关闭）
+   .abc-panel-body   滚动内容区
+   .abc-panel-foot   可选底栏
+   ═══════════════════════════════════════════════════════════ */
+.abc-panel {
   position: fixed;
   bottom: 120px;
   right: 24px;
-  width: 1100px;
+  width: 480px;
   max-height: calc(100vh - 150px);
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-radius: var(--abc-radius);
+  box-shadow: var(--abc-shadow);
   z-index: 999998;
   display: none;
   flex-direction: column;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   box-sizing: border-box;
   overflow: hidden;
+  color: var(--abc-text);
 }
-.abc-project-panel.show {
-  display: flex;
-}
-.abc-project-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 18px;
-  background: linear-gradient(90deg, #409EFF, #3a8ee6);
-  color: #fff;
-  font-weight: 600;
-  font-size: 17px;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
-}
-.abc-project-panel-title {
+.abc-panel--query { width: 1100px; }
+.abc-panel.show { display: flex; }
+
+.abc-panel-head {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 14px 18px 12px;
+  background: var(--abc-head-grad);
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
 }
-.abc-project-panel-badge {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.22);
+.abc-panel-head::after {          /* 签名纹理：右上斜切光带（与菜单/页头同构） */
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -38px;
+  width: 110px;
+  height: 110px;
+  background: rgba(255, 255, 255, 0.07);
+  transform: rotate(28deg);
+  border-radius: 22px;
+  pointer-events: none;
+}
+.abc-panel-logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  flex-shrink: 0;
 }
-.abc-project-panel-close {
+.abc-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.abc-panel-close {
   cursor: pointer;
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1;
-  padding: 0 4px;
-  opacity: 0.9;
+  padding: 2px 6px;
+  opacity: 0.85;
+  border-radius: 6px;
 }
-.abc-project-panel-close:hover {
-  opacity: 1;
-}
-.abc-project-panel-body {
+.abc-panel-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
+
+.abc-panel-body {
   padding: 16px 20px;
   overflow-y: auto;
   box-sizing: border-box;
   flex: 1;
   min-height: 0;
-  max-height: calc(100vh - 180px);
   scrollbar-width: thin;
-  scrollbar-color: #c0c0c0 #f0f0f0;
+  scrollbar-color: #cfe3d1 #f4faf5;
 }
-.abc-project-panel-body::-webkit-scrollbar {
-  width: 10px;
+.abc-panel-body::-webkit-scrollbar { width: 10px; }
+.abc-panel-body::-webkit-scrollbar-track { background: #f4faf5; }
+.abc-panel-body::-webkit-scrollbar-thumb { background: #cfe3d1; border-radius: 5px; }
+.abc-panel-body::-webkit-scrollbar-thumb:hover { background: #a5d6a7; }
+
+.abc-panel-foot {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  border-top: 1px solid var(--abc-border);
+  background: var(--abc-panel);
+  font-size: 12.5px;
+  color: var(--abc-muted);
 }
-.abc-project-panel-body::-webkit-scrollbar-track {
-  background: #f0f0f0;
-}
-.abc-project-panel-body::-webkit-scrollbar-thumb {
-  background: #c0c0c0;
-  border-radius: 5px;
-}
-.abc-project-panel-body::-webkit-scrollbar-thumb:hover {
-  background: #909399;
-}
+
+/* ═══════════════════════════════════════════════════════════
+   查询面板内容（骨架第一个使用者；蓝色系全部归绿）
+   ═══════════════════════════════════════════════════════════ */
 .abc-project-search-row {
   display: flex;
   gap: 12px;
@@ -116,29 +171,29 @@
 .abc-project-search-row input {
   flex: 1;
   padding: 14px 18px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
+  border: 1px solid #d5e3d7;
+  border-radius: 8px;
   font-size: 18px;
   box-sizing: border-box;
   font-family: inherit;
 }
 .abc-project-search-row input:focus {
   outline: none;
-  border-color: #3a8ee6;
+  border-color: var(--abc-green);
 }
 .abc-project-btn {
   padding: 14px 28px;
-  background: #3a8ee6;
+  background: var(--abc-green);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 18px;
   box-sizing: border-box;
   font-family: inherit;
 }
 .abc-project-btn:hover {
-  background: #40a9ff;
+  background: var(--abc-green-bright);
 }
 .abc-project-btn:disabled {
   background: #ccc;
@@ -146,13 +201,13 @@
 }
 .abc-project-checkbtn {
   background: #fff;
-  color: #409EFF;
-  border: 1px solid #c6e2ff;
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
   box-shadow: none;
   white-space: nowrap;
 }
 .abc-project-checkbtn:hover {
-  background: #ecf5ff;
+  background: var(--abc-panel);
 }
 .abc-project-totop {
   position: sticky;
@@ -160,35 +215,35 @@
   display: block;
   margin: 12px auto 4px;
   padding: 8px 18px;
-  background: rgba(64, 158, 255, 0.12);
-  color: #409EFF;
-  border: 1px solid #c6e2ff;
+  background: rgba(46, 125, 50, 0.10);
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
   border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
   font-family: inherit;
 }
 .abc-project-totop:hover {
-  background: rgba(64, 158, 255, 0.2);
+  background: rgba(46, 125, 50, 0.18);
 }
 .abc-project-status {
   text-align: center;
   padding: 40px;
-  color: #909399;
+  color: var(--abc-muted);
   font-size: 18px;
 }
 .abc-project-error {
   background: #fff2f0;
   border: 1px solid #ffccc7;
-  color: #F56C6C;
+  color: #c62828;
   padding: 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 17px;
   margin-bottom: 12px;
 }
 .abc-project-card {
   background: #fff;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--abc-border);
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 16px;
@@ -197,7 +252,7 @@
 }
 .abc-project-card-title {
   font-size: 22px;
-  color: #3a8ee6;
+  color: var(--abc-green);
   font-weight: 600;
   margin-bottom: 16px;
 }
@@ -212,7 +267,7 @@
 }
 .abc-project-card-label {
   font-size: 15px;
-  color: #909399;
+  color: var(--abc-muted);
   margin-bottom: 4px;
 }
 .abc-project-card-value {
@@ -223,7 +278,7 @@
 .abc-project-card-desc {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid var(--abc-border);
   font-size: 16px;
   color: #606266;
   line-height: 1.7;
@@ -235,21 +290,22 @@
   color: #606266;
   margin-bottom: 16px;
 }
-/* 项目文档区域 */
+
+/* ── 项目文档区域 ── */
 .abc-project-doc-section {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid var(--abc-border);
 }
 .abc-project-doc-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: #ecf5ff;
-  color: #409EFF;
-  border: 1px solid #c6e2ff;
-  border-radius: 6px;
+  background: var(--abc-panel);
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
   box-sizing: border-box;
@@ -257,7 +313,7 @@
   transition: background 0.2s;
 }
 .abc-project-doc-btn:hover {
-  background: #e0f0ff;
+  background: var(--abc-bg);
 }
 .abc-project-doc-btn:disabled {
   opacity: 0.6;
@@ -288,25 +344,25 @@
   flex: 1;
   min-width: 160px;
   padding: 8px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
+  border: 1px solid #d5e3d7;
+  border-radius: 8px;
   font-size: 14px;
   font-family: inherit;
   box-sizing: border-box;
 }
 .abc-project-doc-search:focus {
   outline: none;
-  border-color: #3a8ee6;
+  border-color: var(--abc-green);
 }
 .abc-project-download-all {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #2e7d32;
+  background: var(--abc-green);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 15px;
   box-sizing: border-box;
@@ -314,13 +370,13 @@
   transition: background 0.2s;
 }
 .abc-project-download-all:hover {
-  background: #43a047;
+  background: var(--abc-green-bright);
 }
 .abc-project-docs-empty {
   padding: 16px;
   background: #fafafa;
-  border-radius: 6px;
-  color: #909399;
+  border-radius: 8px;
+  color: var(--abc-muted);
   font-size: 15px;
   text-align: center;
 }
@@ -330,8 +386,8 @@
 .abc-project-doc-row {
   padding: 12px 14px;
   background: #fafafa;
-  border: 1px solid #e8e8e8;
-  border-radius: 6px;
+  border: 1px solid var(--abc-border);
+  border-radius: 8px;
   margin-bottom: 8px;
   display: flex;
   flex-direction: column;
@@ -346,13 +402,13 @@
   word-break: break-all;
 }
 .abc-project-doc-link {
-  color: #409EFF;
+  color: var(--abc-green);
   text-decoration: none;
   cursor: pointer;
 }
 .abc-project-doc-link:hover {
   text-decoration: underline;
-  color: #3a8ee6;
+  color: var(--abc-green-bright);
 }
 .abc-project-doc-icon {
   font-size: 16px;
@@ -362,32 +418,34 @@
   flex-wrap: wrap;
   gap: 12px;
   font-size: 14px;
-  color: #909399;
+  color: var(--abc-muted);
 }
 .abc-project-doc-tag {
-  background: #ecf5ff;
-  color: #3a8ee6;
-  border: 1px solid #c6e2ff;
+  background: var(--abc-bg);
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 13px;
 }
 
-/* ══════ 工具菜单：绿色台账风（与 popup 同源，令牌同功能点估算工具） ══════ */
+/* ═══════════════════════════════════════════════════════════
+   工具菜单：绿色台账风（与面板骨架同一套令牌）
+   ═══════════════════════════════════════════════════════════ */
 .abc-project-menu {
   position: fixed;
   bottom: 120px;
   right: 24px;
   width: 328px;
-  background: #e8f5e9;
-  border-radius: 14px;
-  box-shadow: 0 10px 32px rgba(27, 46, 31, 0.22);
+  background: var(--abc-bg);
+  border-radius: var(--abc-radius);
+  box-shadow: var(--abc-shadow);
   z-index: 1000000;
   display: none;
   overflow: hidden;
   font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   box-sizing: border-box;
-  color: #1b2e1f;
+  color: var(--abc-text);
 }
 .abc-project-menu.show { display: block; }
 
@@ -395,7 +453,7 @@
   position: relative;
   display: flex; align-items: center; gap: 10px;
   padding: 14px 16px 12px;
-  background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  background: var(--abc-head-grad);
   color: #fff;
   overflow: hidden;
 }
@@ -422,8 +480,8 @@
   position: relative;
   display: flex; align-items: center; gap: 11px;
   padding: 11px 11px 11px 15px;
-  background: #f1f8f4;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--abc-panel);
+  border: 1px solid var(--abc-border);
   border-radius: 12px;
   cursor: pointer;
   transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
@@ -438,59 +496,60 @@
 }
 .abc-project-menu-item:hover {
   transform: translateY(-1px);
-  border-color: #a5d6a7;
+  border-color: var(--abc-green-soft);
   box-shadow: 0 4px 14px rgba(46, 125, 50, 0.16);
 }
 .abc-project-menu-icon {
   width: 36px; height: 36px; border-radius: 10px;
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  color: #2e7d32;
+  background: var(--abc-bg);
+  border: 1px solid var(--abc-green-soft);
+  color: var(--abc-green);
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; flex-shrink: 0;
   transition: background .16s ease, color .16s ease;
 }
-.abc-project-menu-item:hover .abc-project-menu-icon { background: #2e7d32; border-color: #2e7d32; color: #fff; }
+.abc-project-menu-item:hover .abc-project-menu-icon { background: var(--abc-green); border-color: var(--abc-green); color: #fff; }
 .abc-project-menu-idx {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px; font-weight: 600; color: #2e7d32;
+  font-size: 11px; font-weight: 600; color: var(--abc-green);
   width: 18px; flex-shrink: 0;
 }
 .abc-project-menu-info { flex: 1; min-width: 0; }
 .abc-project-menu-name {
-  display: block; font-size: 13.5px; font-weight: 600; color: #1b2e1f;
+  display: block; font-size: 13.5px; font-weight: 600; color: var(--abc-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .abc-project-menu-desc {
-  display: block; font-size: 11.5px; color: #5a6b5c; margin-top: 2px;
+  display: block; font-size: 11.5px; color: var(--abc-muted); margin-top: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .abc-project-menu-arrow {
-  color: #a5d6a7; font-size: 14px; flex-shrink: 0;
+  color: var(--abc-green-soft); font-size: 14px; flex-shrink: 0;
   transition: color .16s ease, transform .16s ease;
 }
-.abc-project-menu-item:hover .abc-project-menu-arrow { color: #2e7d32; transform: translateX(2px); }
+.abc-project-menu-item:hover .abc-project-menu-arrow { color: var(--abc-green); transform: translateX(2px); }
 
-/* ══════ 文档区「合规检查」按钮（后置检查入口，绿色系） ══════ */
+/* ═══════════════════════════════════════════════════════════
+   文档区动作按钮（合规检查 / 项目工作台 / 归档下载）
+   ═══════════════════════════════════════════════════════════ */
 .abc-project-estimation {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 16px;
-  background: #2e7d32; color: #fff;
-  border: none; border-radius: 6px;
+  background: var(--abc-green); color: #fff;
+  border: none; border-radius: 8px;
   cursor: pointer; font-size: 15px; box-sizing: border-box;
   font-family: inherit;
   transition: background 0.2s;
 }
-.abc-project-estimation:hover { background: #43a047; }
+.abc-project-estimation:hover { background: var(--abc-green-bright); }
 
-/* ══════ 文档区「项目工作台」按钮（深链入口，描边绿） ══════ */
 .abc-project-workbench {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 16px;
-  background: #fff; color: #2e7d32;
-  border: 1px solid #a5d6a7; border-radius: 6px;
+  background: #fff; color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft); border-radius: 8px;
   cursor: pointer; font-size: 15px; box-sizing: border-box;
   font-family: inherit;
   transition: background 0.2s, color 0.2s;
 }
-.abc-project-workbench:hover { background: #2e7d32; color: #fff; }
+.abc-project-workbench:hover { background: var(--abc-green); color: #fff; }

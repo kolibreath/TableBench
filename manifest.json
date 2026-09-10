@@ -28,7 +28,12 @@
         "vendor/fonts/element-icons.woff",
         "vendor/fonts/element-icons.ttf"
       ],
-      "matches": ["http://ita.abc/*"]
+      "matches": [
+        "http://ita.abc/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "file:///*"
+      ]
     }
   ],
   "background": {

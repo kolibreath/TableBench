@@ -7,9 +7,15 @@
   <title>项目规模估算书合规检查工具</title>
   <link rel="stylesheet" href="./vendor/element-ui/theme-chalk/index.css" />
   <link rel="stylesheet" href="./estimation.css" />
+  <link rel="stylesheet" href="./common/bg.css" />
 </head>
 
 <body>
+  <div class="fc-bg" aria-hidden="true">
+    <div class="fc-bg__track fc-bg__track--a"><i></i><i></i><i></i></div>
+    <div class="fc-bg__track fc-bg__track--b"><i></i><i></i><i></i></div>
+    <div class="fc-bg__track fc-bg__track--c"><i></i><i></i><i></i></div>
+  </div>
   <div id="app" class="app" v-cloak>
     <el-container>
       <el-header class="app-header" height="64px">
@@ -1054,7 +1060,6 @@
   <script src="./vendor/mammoth.min.js"></script>
   <script src="./vendor/sortable.min.js"></script>
   <script src="./vendor/element-ui/index.min.js"></script>
-  <script src="./background-animation.js"></script>
   <script src="./common/store.js"></script>
   <script src="./estimation.render.js"></script>
   <script src="./estimation.js"></script>

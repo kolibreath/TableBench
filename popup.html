@@ -130,6 +130,24 @@
     .ft .dot.offline { background: var(--danger); }
     .ft .switch { cursor: pointer; user-select: none; }
     .ft .switch:hover { color: var(--green); }
+    /* ── 悬浮球测试入口 + 形态提示 ── */
+    .hint {
+      margin: 0 14px 8px;
+      font-size: 11px; color: var(--muted);
+      text-align: center; line-height: 1.5;
+    }
+    .test-btn {
+      display: block;
+      margin: 0 14px 10px;
+      padding: 8px 0;
+      width: calc(100% - 28px);
+      background: #fff; color: var(--green);
+      border: 1px dashed var(--green-soft); border-radius: 9px;
+      cursor: pointer; font-size: 12.5px; font-family: inherit;
+      transition: background .15s ease, border-color .15s ease;
+    }
+    .test-btn:hover { background: var(--panel); border-color: var(--green); }
+    .test-btn:disabled { opacity: .6; cursor: wait; }
     @media (prefers-reduced-motion: reduce) {
       .tool, .tool .icon, .tool .arrow { transition: none; }
       .tool:hover { transform: none; }
@@ -146,6 +164,9 @@
   </div>
 
   <div class="list" id="toolList"></div>
+
+  <div class="hint">项目查询、项目工作台、工时填报需在 <b>ITA 页面</b>内通过悬浮球使用</div>
+  <button class="test-btn" id="testBallBtn" title="把悬浮球注入当前页面（任意本地页面即可预览 UI 形态）">🧪 在当前页测试悬浮球</button>
 
   <div class="ft">
     <span class="svc"><span class="dot" id="svcDot"></span><span id="svcText">本地服务：检测中…</span></span>
