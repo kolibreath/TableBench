@@ -264,6 +264,8 @@
   const encodeParam = (value) => encodeURIComponent(value || '');
 
   // 构建请求数据
+  // ⚠ searchProj2022 参数形状未经抓包验证（无翻页逻辑，page 写死 1）；
+  //   pageSize=100 为全插件统一值，服务端如有上限会自行钳制
   const buildFormData = (projname, page = 1, pageSize = 100) => {
     return `bizdomain=0&projname=${encodeParam(projname)}&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=${page}&pageSize=${pageSize}`;
   };
@@ -496,11 +498,11 @@
       const response = await fetch(API_DETAIL_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Cookie': cookie
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
         },
         body: `bizdomain=0&prjid=${encodeParam(prjid)}`,
-        credentials: 'include'
+        credentials: 'include' // 同源请求自动携带登录 Cookie，无需手动设置
       });
 
       if (!response.ok) {
@@ -534,11 +536,11 @@
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Cookie': cookie
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
         },
         body: formData,
-        credentials: 'include'
+        credentials: 'include' // 同源请求自动携带登录 Cookie，无需手动设置
       });
 
       if (!response.ok) {

@@ -150,10 +150,15 @@
     if (state.abort) { try { state.abort.abort(); } catch (e) {} }
     state.abort = new AbortController();
     setStatus('搜索中…');
-    var body = 'bizdomain=0&projname=' + encodeURIComponent(kw) + '&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=20';
+    // ⚠ 该接口参数形状未经抓包验证（page/pageSize 写死无翻页）；pageSize 与
+    //    content.js 项目查询统一为 100，服务端如有上限会自行钳制
+    var body = 'bizdomain=0&projname=' + encodeURIComponent(kw) + '&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=100';
     fetch('http://ita.abc/ita/project/searchProj2022.action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest', // ITA ajax 请求标配（抓包佐证）
+      },
       body: body,
       credentials: 'include',
       signal: state.abort.signal,
@@ -221,7 +226,10 @@
     setStatus('正在获取项目文档列表…');
     fetch('http://ita.abc/ita/project/searchProj.action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest', // ITA ajax 请求标配（抓包佐证）
+      },
       body: 'bizdomain=0&prjid=' + encodeURIComponent(prjid),
       credentials: 'include',
     }).then(function (r) { return r.json(); }).then(function (res) {
