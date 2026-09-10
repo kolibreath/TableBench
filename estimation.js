@@ -2613,10 +2613,14 @@ window.ItaExtension = {
       this.itaSearching = true
       this.itaSearchResults = []
       try {
-        var body = 'bizdomain=0&projname=' + encodeURIComponent(projname) + '&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=20'
+        // ⚠ 该接口参数形状未经抓包验证；pageSize 与 content.js 项目查询统一为 100
+        var body = 'bizdomain=0&projname=' + encodeURIComponent(projname) + '&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=100'
         var resp = await fetch('http://ita.abc/ita/project/searchProj2022.action', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
+          },
           body: body,
           credentials: 'include',
         })
@@ -2639,7 +2643,10 @@ window.ItaExtension = {
       try {
         var resp = await fetch('http://ita.abc/ita/project/searchProj.action', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
+          },
           body: 'bizdomain=0&prjid=' + encodeURIComponent(prjid),
           credentials: 'include',
         })

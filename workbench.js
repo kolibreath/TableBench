@@ -281,10 +281,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('正在查询 ITA 项目…', false);
     searchBtn.disabled = true;
     try {
-      const body = `bizdomain=0&projname=${encodeURIComponent(projname)}&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=20`;
+      // ⚠ 该接口参数形状未经抓包验证；pageSize 与 content.js 项目查询统一为 100
+      const body = `bizdomain=0&projname=${encodeURIComponent(projname)}&projectno=&status=&projtype=&currentstage=&zhuModLvl=&applytime=&page=1&pageSize=100`;
       const resp = await fetch(itaApi.search, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+          'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
+        },
         body,
         credentials: 'include',
       });
