@@ -2569,6 +2569,12 @@ window.ItaExtension = {
     initItaImport() {
       try {
         var self = this
+        // 调试沙箱：?itaMock=1 时放开 ITA 通道（否则测试注入的悬浮球跳转进来是 Case#3，无法调试 ITA 导入）
+        try {
+          if (new URLSearchParams(window.location.search).get('itaMock') === '1') {
+            self.itaEntryBall = true
+          }
+        } catch (e) { /* 忽略 */ }
         chrome.storage.local.get(['fcPendingItaImport'], function (r) {
           var payload = r.fcPendingItaImport
           if (payload && payload.files && payload.files.length) {

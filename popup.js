@@ -60,8 +60,10 @@ testBtn.addEventListener('click', async () => {
     if (/^(chrome|edge|chrome-extension|about):/.test(tab.url || '')) {
       throw new Error('浏览器内部页面无法注入，请先打开一个普通网页（如 localhost 页面）');
     }
-    // 图标字体已内嵌为 data-URI（icons.css 自包含），与面板样式一并注入即可
+    // 图标字体已内嵌为 data-URI（icons.css 自包含），与面板样式一并注入即可；
+    // 测试注入打上标记：跳转估算检查页时自动带 ?itaMock=1（外网调试沙箱）
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['vendor/icons.css', 'content.css'] });
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { window.__abcTestInject = true; } });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
     testBtn.textContent = '✓ 已注入，看页面右下角悬浮球';
     setTimeout(() => window.close(), 900);

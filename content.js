@@ -26,8 +26,13 @@
     }
     let fullUrl = '';
     try {
-      fullUrl = chrome.runtime.getURL(page) + (query || '');
-      chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: query || '' }, function (resp) {
+      // 测试注入的悬浮球：跳转估算检查页自动带模拟数据参数（外网调试沙箱）
+      let q = query || '';
+      if (window.__abcTestInject && page === 'estimation.html') {
+        q = q ? q + '&itaMock=1' : '?itaMock=1';
+      }
+      fullUrl = chrome.runtime.getURL(page) + q;
+      chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: q }, function (resp) {
         if (chrome.runtime.lastError || !resp || !resp.ok) {
           // 后台未就绪：仅真实 ITA 域（白名单内）回退 window.open，其余提示重新注入
           if (/^https?:\/\/([a-z0-9.-]+\.)?ita\.abc\//i.test(location.href)) {
