@@ -9,8 +9,11 @@
 //      （响应自带 projManClurl 数字工号深链，项目经理按钮直接用，无需概况查询）
 //   ② 我参与的  POST /ita/rptWkld/bindWcydGrid          year=今年+上一年各查一次
 //      → 项目经理经 searchProj2022 概况查询（projMan/projManID 域账号拼深链）
-//   ③ 流程实例  POST /ita/project/searchProj.action     processList 筛「正常运行」
-//   ④ 流程卡点  GET  /ita/subprocessimage.action        任务数据埋在内联 JS
+//   ③ 职能组    POST /ita/project/searchProj4GrpLeader  page/pageSize 分页抓全
+//      （响应自带 processList 实际数据 + projManClurl → 清单即详情，零额外查询）
+//   ④ 流程实例  POST /ita/project/searchProj.action     processList 筛「正常运行」
+//      （仅清单未自带 processList 的项目走此查询）
+//   ⑤ 流程卡点  GET  /ita/subprocessimage.action        任务数据埋在内联 JS
 //      （showtasktip('节点', '<tr>参与者/创建/执行者/动作/结束/状态</tr>…')），
 //      「待处理」行即卡点 —— 多人并行评审、转办链都在行序列里。
 //
@@ -30,6 +33,7 @@
 
   const URL_GRID = 'http://ita.abc/ita/rptWkld/bindWcydGrid';
   const URL_MANAGED = 'http://ita.abc/ita/project/myManagedProj.action';
+  const URL_GRP = 'http://ita.abc/ita/project/searchProj4GrpLeader.action';
   const URL_PROJ = 'http://ita.abc/ita/project/searchProj.action';
   const URL_SEARCH = 'http://ita.abc/ita/project/searchProj2022.action';
   const URL_IMG = 'http://ita.abc/ita/subprocessimage.action?subprocessId=';
@@ -144,9 +148,23 @@
   const MOCK_HTML_CHECK = '<html><script>' +
     "showtasktip('申请', ' <tr><td>赵丙</td><td>" + new Date(Date.now() - 5 * 3600e3).toLocaleString('sv-SE').replace('T', ' ') + "</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
     '<\/script></html>';
+  const MOCK_HTML_GRP = '<html><script>' +
+    "showtasktip('代码评审', ' <tr><td>钱七</td><td>" + new Date(Date.now() - 2 * 3600e3).toLocaleString('sv-SE').replace('T', ' ') + "</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
+    '<\/script></html>';
+
+  // 职能组清单（searchProj4GrpLeader）：响应自带 processList 实际数据 + projManClurl
+  const MOCK_GRP = [
+    { prjid: 'PRJZH0077001', projname: '渠道整合平台三期', projectno: '农银科项字【2026】第0747号',
+      projManClurl: 'abcteams://?who=990029505&where=ITA&how=gotoSingleChat&targetUserName=' + encodeURIComponent('陈四') + '&targetUsapId=990029505',
+      processList: [
+        { idProc: 770000001, namProcDesc: '【渠道整合平台三期】代码检查(第8次准出)', indStsProc: '正常运行' },
+        { idProc: 770000002, namProcDesc: '【渠道整合平台三期】测试准出(第8次)', indStsProc: '完成' },
+        { idProc: 770000003, namProcDesc: '【渠道整合平台三期】源代码安全自查(第8次)', indStsProc: '取消' },
+      ] },
+  ];
 
   // mock 调用计数（测试基建：E2E 用它断言缓存命中）
-  const mockCalls = MOCK ? (window.__trackerMockCalls = { grid: 0, managed: 0, proj: 0, img: 0, overview: 0 }) : null;
+  const mockCalls = MOCK ? (window.__trackerMockCalls = { grid: 0, managed: 0, grp: 0, proj: 0, img: 0, overview: 0 }) : null;
 
   // 我参与的（bindWcydGrid 双年份合并去重后的清单）
   const MOCK_GRID = [
@@ -252,6 +270,28 @@
     return rows;
   };
 
+  // 职能组清单：page/pageSize 分页抓全（顶层 total 可靠，按它判停）
+  const apiGrpLeader = async () => {
+    if (MOCK) { mockCalls.grp += 1; return MOCK_GRP; }
+    const rows = [];
+    let page = 1;
+    let total = Infinity;
+    while (rows.length < total && page <= 30) {
+      const resp = await fetch(URL_GRP, {
+        method: 'POST', headers: xhrHeaders, credentials: 'include',
+        body: 'page=' + page + '&pageSize=10',
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const res = await resp.json();
+      const data = (res && res.data) || [];
+      rows.push.apply(rows, data);
+      total = typeof (res && res.total) === 'number' ? res.total : rows.length;
+      if (data.length < 10) break; // 不满页即止
+      page += 1;
+    }
+    return rows;
+  };
+
   const apiProj = async (prjid) => {
     if (MOCK) {
       mockCalls.proj += 1;
@@ -303,7 +343,8 @@
       mockCalls.img += 1;
       if (idProc === 6341400000000007) return MOCK_HTML_REVIEW;
       if (idProc === 6338439828800001) return MOCK_HTML_CHECK;
-      return '<html></html>'; // 工作量评估：运行中但无卡点（验证折叠行）
+      if (idProc === 770000001) return MOCK_HTML_GRP;
+      return '<html></html>'; // 其余流程：运行中但无卡点（验证折叠行）
     }
     const resp = await fetch(URL_IMG + encodeURIComponent(idProc), { credentials: 'include' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -368,22 +409,41 @@
     },
     funcgroup: {
       label: '职能组',
-      fetchProjects: async () => [], // 接口整理中（UI 层占位短路，不会真正走到）
+      fetchProjects: async (onProgress) => {
+        onProgress && onProgress('正在获取职能组项目…');
+        const rows = await apiGrpLeader();
+        const seen = {};
+        const out = [];
+        rows.forEach((r) => {
+          if (!r || !r.prjid || seen[r.prjid]) return;
+          seen[r.prjid] = 1;
+          out.push({
+            prjid: r.prjid, projname: r.projname || '', projectno: r.projectno || '',
+            pm: pmFromClurl(r.projManClurl),
+            processList: Array.isArray(r.processList) ? r.processList : null, // 清单自带流程实例：免详情查询
+          });
+        });
+        return out;
+      },
     },
   };
 
-  // ── 项目级分析：详情 → 运行中流程 → 卡点 → 项目经理（均走缓存） ──
+  // ── 项目级分析：流程实例（清单自带或查详情）→ 卡点 → 项目经理（均走缓存） ──
   const analyzeProject = async (p, force) => {
     const out = { prjid: p.prjid, projname: p.projname, projectno: p.projectno, pm: p.pm || null, flows: [], err: null };
     try {
-      let detail = force ? null : cached(cacheDetail, p.prjid, TTL_SHORT);
-      if (!detail) {
-        detail = await apiProj(p.prjid);
-        store(cacheDetail, p.prjid, detail);
+      let processList = p.processList || null; // 职能组清单自带 processList：免详情查询
+      if (!processList) {
+        let detail = force ? null : cached(cacheDetail, p.prjid, TTL_SHORT);
+        if (!detail) {
+          detail = await apiProj(p.prjid);
+          store(cacheDetail, p.prjid, detail);
+        }
+        if (detail.projname) out.projname = detail.projname;
+        processList = detail.processList || [];
       }
-      if (detail.projname) out.projname = detail.projname;
 
-      const running = (detail.processList || []).filter((proc) =>
+      const running = processList.filter((proc) =>
         String(proc.indStsProc || '').indexOf('正常') >= 0);
 
       await mapLimit(running, 6, async (proc) => {
@@ -636,11 +696,6 @@
   // 页签加载主流程（force=true 时绕过缓存全量重查）
   const loadTab = async (key, force) => {
     if (refreshing) return;
-    if (key === 'funcgroup') { // 职能组占位：接口整理中
-      summaryEl(key).innerHTML = '';
-      listEl(key).innerHTML = '<div class="abc-tracker__empty">职能组相关接口整理中，敬请期待</div>';
-      return;
-    }
     setBusy(true);
     summaryEl(key).innerHTML = '<span class="abc-tracker__loading">正在获取项目清单…</span>';
     const list = listEl(key);
