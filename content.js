@@ -31,6 +31,13 @@
       if (window.__abcTestInject && page === 'estimation.html') {
         q = q ? q + '&itaMock=1' : '?itaMock=1';
       }
+      // 真实 ITA 域跳转估算检查页：带上 ITA 上下文标记，估算页据此放开「从 ITA 导入」
+      // 通道（扩展页有 host_permissions 免 CORS，页内搜索/下载可直连）。非 ITA 域不带，
+      // 保持菜单路径禁用（防呆设计）。
+      if (!q.includes('itaFrom=') && !q.includes('itaMock=') && page === 'estimation.html'
+          && /^https?:\/\/([a-z0-9.-]+\.)?ita\.abc\//i.test(location.href)) {
+        q = q ? q + '&itaFrom=1' : '?itaFrom=1';
+      }
       fullUrl = chrome.runtime.getURL(page) + q;
       chrome.runtime.sendMessage({ type: 'OPEN_PAGE', page, query: q }, function (resp) {
         if (chrome.runtime.lastError || !resp || !resp.ok) {
