@@ -2836,6 +2836,8 @@ window.ItaExtension = {
         if (typeof HistoryStore !== 'undefined') {
           await HistoryStore.save(record)
         }
+        // 统计后端落库（异步 fire-and-forget；endpoint 未配置时静默跳过）
+        if (window.CollectSync) window.CollectSync.enqueue(record)
 
         // 数据收集上报（开发文档 4.5：违例明细 + 统计，不含文档正文）
         if (typeof reportCollect !== 'undefined') {
