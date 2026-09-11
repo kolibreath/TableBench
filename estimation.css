@@ -1701,6 +1701,7 @@ body.is-checking {
   border-radius: 50%;
   background: var(--accent, #2e7d32); color: #fff;
   font-size: 13px; font-weight: 700;
+  line-height: 1; padding: 0; text-indent: 0;
   cursor: pointer; user-select: none; vertical-align: -3px;
 }
 .ita-help:hover { background: var(--green-bright, #43a047); }
@@ -1712,7 +1713,17 @@ body.is-checking {
   opacity: .45;
   cursor: not-allowed;
 }
-.pg-btn--reset { margin-right: 2px; }
+/* 重置按钮：实心红，绿色页头上醒目提示「将清空当前检查材料」 */
+.pg-btn--reset {
+  margin-right: 2px;
+  background: #c62828;
+  border: 1px solid rgba(255, 158, 157, 0.75);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 6px rgba(198, 40, 40, 0.45);
+}
+.pg-btn--reset:hover { background: #b71c1c; border-color: #ffcdd2; }
+.pg-btn--reset:disabled { opacity: .45; }
 
 /* ══════════ ITA 项目选择浮层（v3.2-⑤ on-the-fly） ══════════ */
 .ita-launch__trigger {
