@@ -138,7 +138,7 @@
     { icon: 'el-icon-finished', idx: '', name: '进度跟踪', desc: '流程卡在谁那儿一目了然，一键催办', action: 'tracker' },
     { icon: 'el-icon-folder-opened', idx: '01', name: '项目工作台', desc: '文档检查 + 按产生阶段归档下载', page: 'workbench.html' },
     { icon: 'el-icon-magic-stick', idx: '02', name: '规模估算书合规检查', desc: '14 条规则 + AI 双引擎（前置/后置）', page: 'estimation.html' },
-    { icon: 'el-icon-data-analysis', idx: '03', name: '工时填报检查', desc: '结项前成员工时误差检查与提醒', page: 'workhours.html' },
+    { icon: 'el-icon-data-analysis', idx: '03', name: '工时填报检查', desc: '结项前成员工时误差检查与提醒', action: 'workhours' },
     { icon: 'el-icon-time', idx: '04', name: '检查历史', desc: '检查记录留痕、回溯与导出', page: 'history.html' },
   ];
   const menu = document.createElement('div');
@@ -207,6 +207,11 @@
     if (conf.action === 'tracker') {
       menu.classList.remove('show');
       if (window.__abcTrackerOpen) window.__abcTrackerOpen();
+      return;
+    }
+    if (conf.action === 'workhours') {
+      menu.classList.remove('show');
+      if (window.__abcWorkhoursOpen) window.__abcWorkhoursOpen();
       return;
     }
     if (conf.page) {
