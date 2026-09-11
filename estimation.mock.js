@@ -30,17 +30,22 @@
   ];
 
   function est(name) {
-    return { idFile: 'F-' + name, idPsn: 'U01', namFile: name + '_规模估算书_v2.3.xlsx', fileSize: 48213, timeUpl: '2026-08-30 10:21:44' };
+    return { idFile: 'F-' + name, idPsn: 'U01', userName: '张甲', namFile: name + '_规模估算书_v2.3.xlsx', fileSize: 48213, timeUpl: '2026-08-30 10:21:44' };
   }
   function req(name, batch, b64) {
-    return { idFile: 'F-' + name + '-' + batch, idPsn: 'U02', namFile: name + '需求说明书_批次' + batch + '.docx', fileSize: 15628, timeUpl: '2026-09-02 14:05:12', b64: b64 };
+    return { idFile: 'F-' + name + '-' + batch, idPsn: 'U02', userName: '李乙', namFile: name + '需求说明书_批次' + batch + '.docx', fileSize: 15628, timeUpl: '2026-09-02 14:05:12', b64: b64 };
   }
   var FILES = {
+    // P20260001：覆盖筛选规则的演示组合——多版本估算书（仅显最新 v2.3）、
+    // 需求书 part1/part2（仅显 part1）、接口需求书（无 part 编号照常保留）、其他类型过滤
     P20260001: [
-      est('新一代核心账务系统升级'),
-      req('核心账务升级', 1, '@@req1'), req('核心账务升级', 2, '@@req2'),
-      { idFile: 'F004', idPsn: 'U03', namFile: '概要设计说明书_v1.1.docx', fileSize: 220450, timeUpl: '2026-09-03 09:12:00' },
-      { idFile: 'F005', idPsn: 'U03', namFile: '测试报告_季度汇总.xlsx', fileSize: 88210, timeUpl: '2026-09-05 16:40:31' },
+      { idFile: 'F-EST-V22', idPsn: 'U01', userName: '张甲', namFile: '新一代核心账务系统升级_规模估算书_v2.2.xlsx', fileSize: 48213, timeUpl: '2026-08-01 10:20:00' },
+      { idFile: 'F-EST-V23', idPsn: 'U02', userName: '李乙', namFile: '新一代核心账务系统升级_规模估算书_v2.3.xlsx', fileSize: 50101, timeUpl: '2026-09-01 14:30:00' },
+      { idFile: 'F-REQ-P1', idPsn: 'U02', userName: '李乙', namFile: '核心账务升级业务需求书part1.docx', fileSize: 15628, timeUpl: '2026-09-02 09:00:00', b64: '@@req1' },
+      { idFile: 'F-REQ-P2', idPsn: 'U02', userName: '李乙', namFile: '核心账务升级业务需求书part2.docx', fileSize: 14210, timeUpl: '2026-09-02 09:05:00', b64: '@@req1' },
+      { idFile: 'F-REQ-API', idPsn: 'U03', userName: '赵丙', namFile: '核心账务升级接口需求书.docx', fileSize: 9800, timeUpl: '2026-09-03 16:12:00', b64: '@@req1' },
+      { idFile: 'F004', idPsn: 'U04', userName: '钱丁', namFile: '概要设计说明书_v1.1.docx', fileSize: 220450, timeUpl: '2026-07-11 11:00:00' },
+      { idFile: 'F005', idPsn: 'U03', userName: '孙戊', namFile: '测试报告_季度汇总.xlsx', fileSize: 88210, timeUpl: '2026-09-05 16:40:31' },
     ],
     P20260002: [
       est('手机银行客户体验优化'),

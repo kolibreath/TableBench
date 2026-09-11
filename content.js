@@ -247,6 +247,7 @@
       name: f.namFile || f.nmlName || '',
       size: f.fileSize || 0,
       uploadTime: f.timeUpl || f.dateUpl || '',
+      userName: f.userName || '',
       role: guessFileRole(f.namFile || f.nmlName || ''),
     }));
     const payload = {

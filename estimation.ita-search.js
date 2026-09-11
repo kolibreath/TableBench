@@ -68,9 +68,10 @@
       '  <div class="ita-osp__confirm" style="display:none">' +
       '    <div class="ita-osp__picked"></div>' +
       '    <table class="ita-table ita-osp__table"><thead><tr>' +
-      '      <th>文件名</th><th style="width:96px">类型</th><th style="width:110px">批次</th>' +
+      '      <th style="width:64px"><label class="ita-osp__all-label"><input type="checkbox" class="ita-osp__all" checked> 全选</label></th>' +
+      '      <th>文件名</th><th style="width:84px">类型</th><th style="width:104px">批次</th>' +
       '    </tr></thead><tbody></tbody></table>' +
-      '    <div class="ita-osp__note">仅需估算书与需求说明书两类文件，其他文档已自动过滤；需求书多个批次时在下拉中指定。</div>' +
+      '    <div class="ita-osp__note">仅需估算书与需求说明书两类文件，其他文档已自动过滤。规模估算书按累积登记，仅显示最近一次上传；需求说明书文件名含 part1/part2 时仅显示 part1。默认全选，请逐行确认后加载；需求书多个批次时在下拉中指定。</div>' +
       '    <div class="ita-osp__warn" style="display:none"></div>' +
       '    <div class="ita-osp__actions">' +
       '      <button class="el-button el-button--primary el-button--small ita-osp__load" type="button">' +
@@ -105,6 +106,8 @@
     root.classList.add('show');
     root.querySelector('.ita-osp__list').innerHTML = '';
     root.querySelector('.ita-osp__list').style.display = '';
+    // 清掉上一次会话的确认表残留（勾选状态按行 index 恢复，跨项目残留会误勾选）
+    root.querySelector('.ita-osp__table tbody').innerHTML = '';
     root.querySelector('.ita-osp__confirm').style.display = 'none';
     root.querySelector('.ita-osp__status').textContent = MOCK_ON
       ? '已启用 ITA 模拟数据（?itaMock=1），无需连接内网' : '';
@@ -191,6 +194,40 @@
   }
 
   // ── 选择项目 → 浮层内确认（仅估算书/需求书两类） ──
+
+  /** 上传时间统一取秒级以前片段（timeUpl 形如 2026-04-13 11:14:47.000534） */
+  function fmtTime(t) {
+    t = String(t || '');
+    return t.length >= 16 ? t.slice(0, 16) : t;
+  }
+  function tsOf(f) {
+    var t = Date.parse(f.timeUpl || f.uploadTime || '');
+    return isNaN(t) ? 0 : t;
+  }
+
+  /**
+   * 展示筛选规则（业务口径）：
+   * ① 规模估算书按累积登记，同项目多次上传时仅显示最近一次（上传时间最新）；
+   * ② 需求说明书 part1/part2 以文件名区分，仅显示 part1（无 part 编号的照常保留）。
+   */
+  function applyItaRules(files) {
+    var latest = null;
+    files.forEach(function (f) {
+      if (f.role !== 'estimation') return;
+      f.isLatestEst = false;
+      if (!latest || tsOf(f) > tsOf(latest)) { if (latest) latest.isLatestEst = false; latest = f; }
+    });
+    if (latest) latest.isLatestEst = true;
+    return files.filter(function (f) {
+      if (f.role === 'estimation') return f === latest;
+      if (f.role === 'requirement') {
+        var m = String(f.name || '').match(/part\s*(\d+)/i);
+        return !(m && Number(m[1]) > 1);
+      }
+      return false;
+    });
+  }
+
   function adoptFiles(fileList) {
     state.files = fileList
       .map(function (f) {
@@ -202,9 +239,12 @@
           size: f.fileSize || f.size || 0,
           role: f.role || guessRole(name),
           batchName: f.batchName || '',
+          userName: f.userName || '',          // 上传人中文名（searchProj.action fileList）
+          timeUpl: f.timeUpl || f.uploadTime || '',  // 上传时间
         };
       })
       .filter(function (f) { return f.role === 'estimation' || f.role === 'requirement'; });
+    state.files = applyItaRules(state.files);
     fillBatches();
   }
 
@@ -268,6 +308,11 @@
   function renderConfirm() {
     var reqCount = fillBatches();
     var tb = root.querySelector('.ita-osp__table tbody');
+    // 重渲染保留用户勾选状态（首次渲染默认全选）
+    var prevChk = {};
+    Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__chk'), function (c) {
+      prevChk[c.dataset.i] = c.checked;
+    });
     tb.innerHTML = state.files.map(function (f, i) {
       var batchCell;
       if (f.role === 'requirement') {
@@ -281,8 +326,14 @@
       } else {
         batchCell = '<span class="ita-none">—</span>';
       }
+      var meta = [];
+      if (f.userName || f.idPsn) meta.push('上传人 ' + esc(f.userName || f.idPsn));
+      if (f.timeUpl) meta.push(fmtTime(f.timeUpl));
+      var metaRow = meta.length ? '<div class="ita-osp__fmeta">' + meta.join(' · ') + '</div>' : '';
+      var tag = f.isLatestEst ? '<span class="ita-osp__ftag">最新版</span>' : '';
       return '<tr>' +
-        '<td class="ita-osp__fname">' + esc(f.name) + '</td>' +
+        '<td><input type="checkbox" class="ita-osp__chk" data-i="' + i + '"' + (prevChk.hasOwnProperty(i) && !prevChk[i] ? '' : ' checked') + '></td>' +
+        '<td class="ita-osp__fname"><div>' + esc(f.name) + tag + '</div>' + metaRow + '</td>' +
         '<td><select class="ita-select ita-osp__role" data-i="' + i + '">' +
         ['estimation', 'requirement'].map(function (v) {
           return '<option value="' + v + '"' + (f.role === v ? ' selected' : '') + '>' + ROLE_LABEL[v] + '</option>';
@@ -291,6 +342,24 @@
         '<td>' + batchCell + '</td>' +
         '</tr>';
     }).join('');
+    var chkAll = root.querySelector('.ita-osp__all');
+    var syncAll = function () {
+      var boxes = Array.prototype.slice.call(tb.querySelectorAll('.ita-osp__chk'));
+      if (chkAll) chkAll.checked = boxes.length > 0 && boxes.every(function (c) { return c.checked; });
+    };
+    Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__chk'), function (c) {
+      var idx = c.dataset.i;
+      if (prevChk.hasOwnProperty(idx)) c.checked = prevChk[idx];
+      c.addEventListener('change', syncAll);
+    });
+    if (chkAll) {
+      // thead 不随 tbody 重渲染，用 onchange 覆盖式绑定避免监听叠加
+      chkAll.onchange = function () {
+        Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__chk'), function (c) {
+          c.checked = chkAll.checked;
+        });
+      };
+    }
     Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__role'), function (sel) {
       sel.addEventListener('change', function () {
         state.files[Number(sel.dataset.i)].role = sel.value;
@@ -337,20 +406,27 @@
     }
   }
 
-  // ── 确认：回写 Vue 状态并调用既有 itaLoad() ──
+  // ── 确认：回写 Vue 状态并调用既有 itaLoad()（仅提交勾选行） ──
   function confirmLoad() {
     var vm = getVm();
     if (!vm) { setStatus('无法连接检查页面状态，请刷新页面重试', true); return; }
-    var est = state.files.filter(function (f) { return f.role === 'estimation'; });
-    if (est.length === 0) { setStatus('未识别到规模估算书（.xlsx/.et 且文件名含"估算"）', true); return; }
-    if (est.length > 1) { setStatus('识别到多份估算书，请仅保留一份"估算书"类型', true); return; }
+    var tb = root.querySelector('.ita-osp__table tbody');
+    var checked = {};
+    Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__chk'), function (c) {
+      if (c.checked) checked[c.dataset.i] = true;
+    });
+    var sel = state.files.filter(function (f, i) { return checked[String(i)]; });
+    if (!sel.length) { setStatus('请至少勾选一份文件', true); return; }
+    var est = sel.filter(function (f) { return f.role === 'estimation'; });
+    if (est.length === 0) { setStatus('未勾选规模估算书（.xlsx/.et 且文件名含"估算"）', true); return; }
+    if (est.length > 1) { setStatus('勾选了多份估算书，请仅保留一份"估算书"类型', true); return; }
     vm.itaPayload = {
       prjid: state.picked.prjid || '',
       projectno: state.picked.projectno || '',
       projname: state.picked.projname || '',
       projtype: state.picked.projtype || '',
-      files: state.files.map(function (f) {
-        return { idFile: f.idFile, idPsn: f.idPsn, name: f.name, size: f.size, role: f.role, batchName: f.batchName };
+      files: sel.map(function (f) {
+        return { idFile: f.idFile, idPsn: f.idPsn, name: f.name, size: f.size, role: f.role, batchName: f.batchName, userName: f.userName, uploadTime: f.timeUpl };
       }),
     };
     // 不调用 itaPrepareBatches 覆盖——用户在浮层中指定的批次即最终批次

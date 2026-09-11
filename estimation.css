@@ -1765,7 +1765,10 @@ body.is-checking {
   position: absolute; left: 50%; transform: translateX(-50%); top: 9vh;
   width: 620px; max-width: 92vw; max-height: 78vh; overflow-y: auto;
   background: #fff; border-radius: 14px; box-shadow: 0 18px 48px rgba(27, 46, 31, 0.28);
+  /* 隐藏滚动条但保留滚动能力（滚轮/触控板/拖拽均不受影响） */
+  scrollbar-width: none; -ms-overflow-style: none;
 }
+.ita-osp__panel::-webkit-scrollbar { display: none; }
 .ita-osp__head {
   display: flex; align-items: center; gap: 10px;
   padding: 14px 20px; border-bottom: 1px solid rgba(0, 0, 0, 0.06);
@@ -1813,7 +1816,18 @@ body.is-checking {
 }
 .ita-osp__table { margin-bottom: 10px; }
 .ita-osp__table th { background: #f1f8f4; }
+.ita-osp__all-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600; color: #1b2e1f; cursor: pointer; user-select: none;
+}
+.ita-osp__chk { cursor: pointer; }
 .ita-osp__fname { word-break: break-all; font-size: 12.5px; color: #303133; }
+.ita-osp__fmeta { font-size: 11px; color: #8a9a8c; margin-top: 3px; }
+.ita-osp__ftag {
+  display: inline-block; margin-left: 6px; padding: 1px 7px;
+  font-size: 10.5px; font-weight: 600; border-radius: 9px; vertical-align: 1px;
+  color: #1b5e20; background: #e5f3e7; border: 1px solid rgba(165, 214, 167, 0.9);
+}
 .ita-osp__note {
   font-size: 11.5px; color: #8a9a8c; line-height: 1.6;
   margin: 10px 0 10px;
