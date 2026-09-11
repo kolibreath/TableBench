@@ -18,8 +18,24 @@ document.addEventListener('DOMContentLoaded', () => {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
   const sourceTag = (r) => r.source === 'ita'
-    ? '<span class="type-tag type-est-ita">后置（ITA）</span>'
-    : '<span class="type-tag type-est-manual">前置（手动）</span>';
+    ? '<span class="type-tag type-est-ita">ITA</span>'
+    : '<span class="type-tag type-est-manual">手动上传</span>';
+
+  // 是否开启 AI 检查：aiUrl 非空即视为开启（检查时的 AI 后端配置）
+  const aiTag = (r) => (r.aiUrl
+    ? '<span class="type-tag type-ai-on">✓ 开启</span>'
+    : '<span class="type-tag type-ai-off">—</span>');
+
+  // 检查对象：规模估算书 / 需求说明书（含批次），按 files[].role 汇总
+  const targetTag = (r) => {
+    const files = r.files || [];
+    const est = files.filter((x) => x.role === 'estimation');
+    const req = files.filter((x) => x.role === 'requirement');
+    const parts = [];
+    if (est.length) parts.push('<span class="type-tag type-est-ita">规模估算书 ×' + est.length + '</span>');
+    if (req.length) parts.push('<span class="type-tag type-est-manual">需求说明书 ×' + req.length + '</span>');
+    return parts.length ? parts.join(' ') : '<span class="type-tag type-ai-off">—</span>';
+  };
 
   const fileNames = (r) => (r.files || []).map((f) => f.name).filter(Boolean);
 
@@ -101,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="proj-name">${esc(name)}</div>
             <div class="proj-sub">${sub || '&nbsp;'}</div>
           </td>
+          <td style="white-space:nowrap">${aiTag(r)}</td>
           <td>${esc(r.ruleVersion || '—')}</td>
           <td style="white-space:nowrap">
             <span class="${mustCls}">${s.must || 0}</span> /
@@ -120,8 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <thead>
           <tr>
             <th style="width:150px">时间</th>
-            <th style="width:110px">来源</th>
+            <th style="width:100px">来源</th>
             <th>项目 / 文件</th>
+            <th style="width:92px">AI 检查</th>
             <th style="width:80px">规则版本</th>
             <th style="width:120px">违例（强制/建议/AI）</th>
             <th style="width:70px">耗时</th>
@@ -326,6 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="item"><b>${rec.durationSec != null ? rec.durationSec + 's' : '-'}</b><br>耗时</div>
       </div>
       ${proj.projname ? `<p style="font-size:13px;color:#555">项目：${esc(proj.projname)}（${esc(proj.projectno || '-')}）</p>` : ''}
+      ${fileNames(rec).length ? `<p style="font-size:13px;color:#555">检查对象：${targetTag(rec)}</p>` : ''}
       ${fileNames(rec).length ? `<p style="font-size:13px;color:#555">文件：${esc(fileNames(rec).join('、'))}</p>` : ''}
     `;
 

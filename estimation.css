@@ -1737,6 +1737,8 @@ body.is-checking {
 .ita-launch__text { font-size: 13.5px; font-weight: 600; color: var(--text, #1b2e1f); }
 .ita-launch__hint { font-size: 11.5px; color: var(--muted, #5a6b5c); }
 .ita-launch__done { padding: 4px 2px; }
+/* 已加载文件行与「重新打开选择弹层」按钮之间留出呼吸间隔 */
+.ita-launch__done .ita-launch__reopen { margin-top: 10px; }
 .ita-launch__proj { font-size: 14px; font-weight: 700; color: var(--text, #1b2e1f); word-break: break-all; }
 .ita-launch__projno { font-size: 11.5px; color: var(--muted, #5a6b5c); margin-top: 2px; letter-spacing: .2px; }
 .ita-launch__meta { font-size: 12px; color: var(--muted, #5a6b5c); margin: 4px 0 10px; }
@@ -1768,9 +1770,9 @@ body.is-checking {
 .ita-osp.show { display: block; }
 .ita-osp__mask {
   position: absolute; inset: 0;
-  background: rgba(18, 32, 21, 0.45);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  /* 性能：去掉 backdrop-filter blur——内网低配机（Edge 91 无 GPU 加速）上浮层内
+     打字/滚动需全量重新合成，是输入与列表卡顿的主因；改用更深的纯色遮罩 */
+  background: rgba(18, 32, 21, 0.55);
 }
 .ita-osp__panel {
   position: absolute; left: 50%; transform: translateX(-50%); top: 9vh;
@@ -1806,14 +1808,18 @@ body.is-checking {
 .ita-osp__item {
   position: relative;
   padding: 11px 14px; border: 1px solid rgba(0, 0, 0, 0.07); border-radius: 10px;
-  margin-bottom: 8px; cursor: pointer; transition: border-color .15s ease, background .15s ease, transform .15s ease;
+  margin-bottom: 8px; cursor: pointer;
+  /* 性能：不使用 transform/box-shadow 过渡——内网低配机（Edge 91 无 GPU 加速）
+     上列表滚动时逐行合成开销巨大；hover 仅变背景色/边框（低开销重绘） */
+  transition: border-color .12s ease, background .12s ease;
+  contain: content;
 }
 .ita-osp__item::before {
   content: ""; position: absolute; left: 0; top: 10px; bottom: 10px;
   width: 3px; border-radius: 0 3px 3px 0; background: linear-gradient(180deg, #2e7d32, #43a047);
   opacity: 0; transition: opacity .15s ease;
 }
-.ita-osp__item:hover { border-color: #a5d6a7; background: #f1f8f4; transform: translateY(-1px); }
+.ita-osp__item:hover { border-color: #a5d6a7; background: #f1f8f4; }
 .ita-osp__item:hover::before { opacity: .85; }
 .ita-osp__item-name { font-size: 13.5px; font-weight: 600; color: #1b2e1f; }
 .ita-osp__item-meta { font-size: 12px; color: #5a6b5c; margin-top: 2px; }
@@ -1833,7 +1839,11 @@ body.is-checking {
 }
 .ita-osp__chk { cursor: pointer; }
 .ita-osp__fname { word-break: break-all; font-size: 12.5px; color: #303133; }
-.ita-osp__fmeta { font-size: 11px; color: #8a9a8c; margin-top: 3px; }
+.ita-osp__fmeta {
+  font-size: 12.5px; color: #40514a; margin-top: 4px; font-weight: 600;
+  background: #f1f8f4; border-radius: 5px; padding: 3px 8px;
+  display: inline-block;
+}
 .ita-osp__ftag {
   display: inline-block; margin-left: 6px; padding: 1px 7px;
   font-size: 10.5px; font-weight: 600; border-radius: 9px; vertical-align: 1px;

@@ -327,8 +327,8 @@
         batchCell = '<span class="ita-none">—</span>';
       }
       var meta = [];
-      if (f.userName || f.idPsn) meta.push('上传人 ' + esc(f.userName || f.idPsn));
-      if (f.timeUpl) meta.push(fmtTime(f.timeUpl));
+      if (f.userName || f.idPsn) meta.push('👤 上传人 ' + esc(f.userName || f.idPsn));
+      if (f.timeUpl) meta.push('🕐 ' + fmtTime(f.timeUpl));
       var metaRow = meta.length ? '<div class="ita-osp__fmeta">' + meta.join(' · ') + '</div>' : '';
       var tag = f.isLatestEst ? '<span class="ita-osp__ftag">最新版</span>' : '';
       return '<tr>' +
@@ -345,7 +345,10 @@
     var chkAll = root.querySelector('.ita-osp__all');
     var syncAll = function () {
       var boxes = Array.prototype.slice.call(tb.querySelectorAll('.ita-osp__chk'));
-      if (chkAll) chkAll.checked = boxes.length > 0 && boxes.every(function (c) { return c.checked; });
+      if (!chkAll) return;
+      var on = boxes.filter(function (c) { return c.checked; }).length;
+      chkAll.checked = boxes.length > 0 && on === boxes.length;
+      chkAll.indeterminate = on > 0 && on < boxes.length; // 部分选中态同步
     };
     Array.prototype.forEach.call(tb.querySelectorAll('.ita-osp__chk'), function (c) {
       var idx = c.dataset.i;
@@ -376,6 +379,7 @@
       '已选：' + (state.picked && (state.picked.projname || state.picked.prjid) || '') +
       (state.picked && state.picked.projectno ? '（' + state.picked.projectno + '）' : '');
 
+    syncAll(); // 渲染后同步表头全选/半选状态
     updateWarn();
     root.querySelector('.ita-osp__list').style.display = 'none';
     root.querySelector('.ita-osp__confirm').style.display = '';
