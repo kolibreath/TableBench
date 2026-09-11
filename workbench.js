@@ -176,6 +176,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileTable = document.getElementById('fileTable');
   const statusLine = document.getElementById('statusLine');
   const resultArea = document.getElementById('resultArea');
+  const typeBar = document.getElementById('typeBar');
+  const typeSelect = document.getElementById('typeSelect');
+  const typeBasis = document.getElementById('typeBasis');
+  const reqArchiveBtn = document.getElementById('reqArchiveBtn');
+  const methodBtn = document.getElementById('methodBtn');
+  const drawerMask = document.getElementById('drawerMask');
+  const methodDrawer = document.getElementById('methodDrawer');
+  const drawerBody = document.getElementById('drawerBody');
+  const drawerFoot = document.getElementById('drawerFoot');
 
   // 后端地址（默认 127.0.0.1:8765，可配置）
   let SERVICE = 'http://127.0.0.1:8765';
@@ -191,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let files = [];              // [{ idFile, idPsn, name, size, uploadTime, role, checked }]
   let planMap = [];            // 与 files 平行：{ fileType, product, score, stage, recommend, recommendStage }
   let checkState = [];         // 与 files 平行：null | { status, failCount, results?, error? }
+  let currentSheet = null;     // 当前项目类型对应的入库清单 sheet（类型确认栏可切换）
   let sheets = [];
   let allFolders = ['其他'];
   let currentFilter = 'all';
@@ -274,6 +284,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  // ── 自查方法抽屉（数据：selfcheck-method.json，版本 202609） ──
+  const openMethodDrawer = async () => {
+    methodDrawer.classList.add('show');
+    drawerMask.classList.add('show');
+    if (drawerBody.dataset.loaded) return;
+    try {
+      const d = await (await fetch(chrome.runtime.getURL('selfcheck-method.json'))).json();
+      document.getElementById('drawerVer').textContent = d.version || '202609';
+      const secHtml = (d.sections || []).map((s) => `
+        <div class="drawer-section">
+          <h4><span class="sec-no">${s.no}</span>检查项 ${s.no}：${esc(s.target)}</h4>
+          <table class="method-table">
+            <thead><tr><th style="width:64px">操作</th><th>检查要点（含判定依据）</th></tr></thead>
+            <tbody>${s.ops.map((o) => `<tr><td class="op">${esc(o.op)}</td><td class="pt">${esc(o.point)}</td></tr>`).join('')}</tbody>
+          </table>
+          <details class="drawer-examples">
+            <summary>常见问题举例（${(s.examples || []).length}）</summary>
+            <ul>${(s.examples || []).map((e) => `<li>${esc(e)}</li>`).join('')}</ul>
+          </details>
+        </div>`).join('');
+      const ck = d.checklist || {};
+      const ckHtml = `
+        <div class="drawer-checklist">
+          <h4>${esc(ck.title || '自查要点速查清单')}</h4>
+          ${(ck.groups || []).map((g) => `
+            <div class="ck-group"><b>${esc(g.name)}</b>
+              <ul>${(g.items || []).map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+            </div>`).join('')}
+        </div>`;
+      drawerBody.innerHTML =
+        `<div class="drawer-intro">${esc(d.intro || '')}</div>` + secHtml + ckHtml;
+      drawerFoot.textContent = '来源：' + (d.source || '');
+      drawerBody.dataset.loaded = '1';
+    } catch (e) {
+      drawerBody.innerHTML = '<div class="drawer-intro">自查方法数据加载失败：' + esc(e.message || e) + '</div>';
+    }
+  };
+  const closeMethodDrawer = () => {
+    methodDrawer.classList.remove('show');
+    drawerMask.classList.remove('show');
+  };
+  methodBtn.addEventListener('click', openMethodDrawer);
+  document.getElementById('drawerClose').addEventListener('click', closeMethodDrawer);
+  drawerMask.addEventListener('click', closeMethodDrawer);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMethodDrawer(); });
+
   // ── ITA 项目搜索 ──
   searchBtn.addEventListener('click', async () => {
     const projname = (projInput.value || '').trim();
@@ -345,39 +401,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 分类：按项目类型选 sheet，预计算每个文件的归档阶段
     const sheet = findSheetByProjtype(sheets, currentProject.projtype);
+    applyClassification(sheet);
+
+    checkState = files.map(() => null);
+    currentFilter = 'all';
+    searchKeyword = '';
+
+    projList.style.display = 'none';
+    projInfo.innerHTML = `已选：<b>${esc(currentProject.projname)}</b>（${esc(currentProject.projectno || '-')}）`;
+
+    renderTypeBar(sheet);
+    renderTabs();
+    renderTable();
+    const identifiable = files.filter((f) => f.checked && isCheckTarget(f)).length;
+    setStatus(`获取到 ${files.length} 个文档；可检查对象（业务需求说明书 / 工作产品清单 / 系统设计说明书）${identifiable} 份，已默认勾选。`, false);
+    refreshButtons();
+  };
+
+  // 检查对象限定：仅规范约定的 3 份文档有检查依据（附件2《项目文档自查方法》）
+  const isCheckTarget = (f) => DOC_TARGETS.includes(f.role);
+
+  // 按项目类型 sheet 重建分类（阶段 tab / 归档阶段 / 推荐标记）
+  const applyClassification = (sheet) => {
+    currentSheet = sheet || null;
     allFolders = sheet ? [...Object.keys(sheet.stages), '其他'] : ['其他'];
     planMap = files.map((f) => {
       const fileType = f.fileType || '-';
       const cls = sheet ? classifyFile(fileType, sheet.stages) : { stage: '其他', product: '-', score: '-', recommend: false };
       return { fileType, ...cls };
     });
-    checkState = files.map(() => null);
     currentFilter = 'all';
-    searchKeyword = '';
+  };
 
-    // 分类依据提示（台账标题旁的 tab 行上方）
-    const basis = sheet
-      ? `分类依据：${sheet.name}`
-      : `项目类型「${currentProject.projtype || '未知'}」未匹配分类表，全部归入「其他」`;
+  // ── 项目类型确认栏（自动识别预选，准确性由用户核对） ──
+  const renderTypeBar = (sheet) => {
+    typeBar.classList.add('show');
+    typeSelect.innerHTML = '<option value="">— 请选择项目类型 —</option>' +
+      sheets.map((s) => `<option value="${esc(s.name)}">${esc(s.name)}</option>`).join('');
+    typeSelect.value = sheet ? sheet.name : '';
+    typeBasis.textContent = currentProject && currentProject.projtype
+      ? `ITA 类型「${currentProject.projtype}」自动匹配${sheet ? '成功' : '失败，请手动选择'}`
+      : 'ITA 未返回项目类型，请手动选择';
+  };
 
-    projList.style.display = 'none';
-    projInfo.innerHTML =
-      `已选：<b>${esc(currentProject.projname)}</b>（${esc(currentProject.projectno || '-')}）· ${esc(basis)} · ` +
-      `<a id="histLink">查看此项目历史</a>`;
-    const histLink = document.getElementById('histLink');
-    if (histLink) {
-      histLink.addEventListener('click', () => {
-        const q = new URLSearchParams({ prjid: currentProject.prjid, projname: currentProject.projname || '' });
-        window.open(chrome.runtime.getURL('history.html') + '?' + q.toString(), '_blank');
-      });
-    }
-
+  typeSelect.addEventListener('change', () => {
+    if (!currentProject) return;
+    const sheet = sheets.find((s) => s.name === typeSelect.value) || null;
+    applyClassification(sheet);
     renderTabs();
     renderTable();
-    const identifiable = files.filter((f) => f.checked).length;
-    setStatus(`获取到 ${files.length} 个文档（默认勾选 ${identifiable} 个可识别的检查目标）。`, false);
     refreshButtons();
+    setStatus(sheet
+      ? `已按「${sheet.name}」重新分类，请核对各文件的归档阶段。`
+      : '未选择项目类型，全部文件归入「其他」。', false);
+  });
+
+  // ── 一键勾选推荐入库（《武研项目文档入库清单 v1.4》要求入库档位） ──
+  const matchProduct = (f, product) => {
+    const n = (f.name || '').replace(/\s+/g, '');
+    const p = product.replace(/\s+/g, '');
+    if (n.includes(p) || p.includes(n)) return true;
+    // 「推广方案或业务需求说明书」类组合名：任一子项命中即算
+    if (p.includes('或')) {
+      return p.split('或').some((alt) => alt && n.includes(alt));
+    }
+    return matchInfo(n, p).dice >= 0.55;
   };
+
+  reqArchiveBtn.addEventListener('click', () => {
+    if (!currentProject || !currentSheet || !currentSheet.requiredArchive) {
+      setStatus('请先选择项目类型（推荐入库清单按项目类型区分）。', true);
+      return;
+    }
+    const { always = [], ifAny = [] } = currentSheet.requiredArchive;
+    const picked = [];
+    const hit = (product) => {
+      const matched = files.filter((f) => matchProduct(f, product));
+      // 「如有」档位：存在即勾；多份（如 part1/part2 系列）全勾
+      matched.forEach((f) => { f.checked = true; });
+      if (matched.length) picked.push(product);
+      return matched.length;
+    };
+    always.forEach(hit);
+    ifAny.forEach(hit);
+    const missing = [...always, ...ifAny].filter((p) => !picked.includes(p));
+    renderTable();
+    refreshButtons();
+    const reqNote = missing.length
+      ? `；未在 ITA 找到的要求入库文档：${missing.join('、')}`
+      : '；要求入库文档均已找到并勾选';
+    setStatus(`推荐入库：已勾选 ${picked.length} 类要求入库文档（${picked.join('、') || '无'}）${reqNote}。可在归档预览中复核。`, !!missing.length);
+  });
 
   const pickProject = async (prjid, projects) => {
     const proj = projects.find((x) => String(x.prjid) === String(prjid));
@@ -483,6 +597,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<span class="rec-badge" data-rec="${i}" title="一键归入推荐文件夹">推荐:${esc(plan.recommendStage)}</span>`
         : '';
       const roleCls = f.role === '未知' ? 'role-tag unknown' : 'role-tag';
+      // 检查能力分级：仅规范约定的 3 份检查对象可发起检查，其余文档只参与归档
+      const checkable = isCheckTarget(f);
+      const checkCell = checkable
+        ? `<button class="btn-mini btn-one-check" data-index="${i}" ${busy ? 'disabled' : ''} title="下载并检查该文档">检查</button>`
+        : '<span class="no-check" title="自查方法（附件2）仅覆盖业务需求说明书 / 工作产品清单 / 系统设计说明书">— 无检查依据</span>';
       rows.push(`
         <div class="file-row" data-index="${i}">
           <span><input type="checkbox" class="row-cb" data-index="${i}" ${f.checked ? 'checked' : ''}></span>
@@ -490,8 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="col-role"><span class="${roleCls}">${esc(f.role)}</span></span>
           <span class="col-product">${esc(plan.product || '-')}${rec}</span>
           <span class="col-stage" data-stage="${i}" title="点击调整归档文件夹">${esc(plan.stage || '其他')}</span>
-          <span class="col-check">${checkBadge(checkState[i])}</span>
-          <span><button class="btn-mini btn-one-check" data-index="${i}" ${busy ? 'disabled' : ''} title="下载并检查该文档">检查</button></span>
+          <span class="col-check">${checkable ? checkBadge(checkState[i]) : '<span class="check-badge idle">—</span>'}</span>
+          <span>${checkCell}</span>
         </div>
         <div class="detail-row" data-detail="${i}">${renderCheckDetail(checkState[i])}</div>`);
     });
@@ -567,9 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const refreshButtons = () => {
     const anyChecked = files.some((f) => f.checked);
-    checkBtn.disabled = busy || !files.length;
+    const checkTargetChecked = files.some((f) => f.checked && isCheckTarget(f));
+    checkBtn.disabled = busy || !checkTargetChecked;
+    checkBtn.title = checkTargetChecked ? '' : '请勾选业务需求说明书 / 工作产品清单 / 系统设计说明书';
     downloadBtn.disabled = busy || !anyChecked;
     previewBtn.disabled = !files.length;
+    reqArchiveBtn.disabled = busy || !currentProject;
     checkAllBox.checked = files.length > 0 && files.every((f) => f.checked);
   };
 
@@ -631,7 +753,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const runCheck = async (targets) => {
     if (busy) return;
-    if (!targets.length) { setStatus('请先勾选要检查的文档。', true); return; }
+    // 检查范围收敛：仅 3 份检查对象有检查依据（附件2），其余文档只参与归档
+    targets = targets.filter((f) => isCheckTarget(f));
+    if (!targets.length) {
+      setStatus('请先勾选可检查的文档：业务需求说明书 / 工作产品清单 / 系统设计说明书。', true);
+      return;
+    }
     if (!currentProject) return;
     busy = true;
     refreshButtons();
@@ -706,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  checkBtn.addEventListener('click', () => runCheck(files.filter((f) => f.checked)));
+  checkBtn.addEventListener('click', () => runCheck(files.filter((f) => f.checked && isCheckTarget(f))));
 
   // ── 动作 ②：归档下载勾选文件 ──
   downloadBtn.addEventListener('click', async () => {

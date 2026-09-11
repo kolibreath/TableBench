@@ -166,6 +166,57 @@
     .summary-hide { text-align: right; font-size: 12px; color: #9aa89c; cursor: pointer; margin: -8px 0 14px; }
     .summary-hide:hover { color: #2e7d32; }
     .empty { text-align: center; padding: 60px 20px; color: #5a6b5c; background: #fff; border-radius: 10px; }
+
+    /* ── 项目类型确认栏（分类准确性由用户核对） ── */
+    .type-bar { display: none; align-items: center; gap: 10px; margin-bottom: 14px;
+      padding: 11px 16px; background: #fff; border-radius: 10px; font-size: 13px; color: #5a6b5c;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05); flex-wrap: wrap; }
+    .type-bar.show { display: flex; }
+    .type-bar b { color: #1b2e1f; }
+    .type-bar select { padding: 6px 10px; border: 1px solid #a5d6a7; border-radius: 6px;
+      font-size: 13px; font-family: inherit; color: #2e7d32; background: #fff; }
+    .type-bar .basis { color: #9aa89c; font-size: 12px; }
+    .type-bar .hint { color: #d4a017; font-size: 12px; }
+
+    /* ── 自查方法抽屉（右侧拉出，形式同估算检查工具） ── */
+    .drawer-mask { display: none; position: fixed; inset: 0; background: rgba(18,32,21,.45);
+      z-index: 60; opacity: 0; transition: opacity .25s ease; }
+    .drawer-mask.show { display: block; opacity: 1; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 600px; max-width: 92vw;
+      background: #fff; box-shadow: -12px 0 36px rgba(27,46,31,.25); z-index: 61;
+      transform: translateX(102%); transition: transform .28s ease; display: flex; flex-direction: column; }
+    .drawer.show { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; gap: 10px; padding: 15px 20px;
+      background: linear-gradient(135deg, #1b5e20, #2e7d32); color: #fff; flex-shrink: 0; }
+    .drawer-title { font-size: 14.5px; font-weight: 700; flex: 1; }
+    .drawer-ver { font-size: 11px; padding: 2px 9px; border-radius: 9px;
+      background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); }
+    .drawer-close { cursor: pointer; font-size: 16px; opacity: .85; padding: 0 4px; }
+    .drawer-close:hover { opacity: 1; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 16px 20px 24px; }
+    .drawer-intro { font-size: 12.5px; color: #5a6b5c; line-height: 1.7; margin-bottom: 14px; }
+    .drawer-section { margin-bottom: 18px; }
+    .drawer-section h4 { font-size: 13.5px; color: #2e7d32; margin-bottom: 8px;
+      display: flex; align-items: center; gap: 8px; }
+    .drawer-section h4 .sec-no { display: inline-flex; align-items: center; justify-content: center;
+      width: 20px; height: 20px; border-radius: 50%; background: #2e7d32; color: #fff;
+      font-size: 12px; flex-shrink: 0; }
+    .method-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .method-table th, .method-table td { border: 1px solid #e3ece4; padding: 7px 10px;
+      text-align: left; vertical-align: top; line-height: 1.6; }
+    .method-table th { background: #f1f8f4; color: #2e7d32; font-weight: 600; white-space: nowrap; }
+    .method-table td.op { white-space: nowrap; color: #1b2e1f; font-weight: 600; }
+    .method-table td.pt { color: #40514a; }
+    .drawer-examples { margin-top: 8px; font-size: 12px; color: #8a9a8c; line-height: 1.7; }
+    .drawer-examples summary { cursor: pointer; color: #b8860b; user-select: none; }
+    .drawer-examples ul { margin: 6px 0 0 18px; }
+    .drawer-checklist h4 { font-size: 13.5px; color: #2e7d32; margin: 14px 0 8px; }
+    .drawer-checklist .ck-group { margin-bottom: 10px; }
+    .drawer-checklist .ck-group b { display: block; font-size: 12.5px; color: #1b2e1f; margin-bottom: 4px; }
+    .drawer-checklist .ck-group li { font-size: 12px; color: #5a6b5c; line-height: 1.7;
+      list-style: none; padding-left: 20px; position: relative; }
+    .drawer-checklist .ck-group li::before { content: "☐"; position: absolute; left: 2px; color: #43a047; }
+    .drawer-foot { padding: 10px 20px; font-size: 11.5px; color: #9aa89c; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -207,6 +258,15 @@
       <button class="btn ghost" id="previewBtn" disabled><i class="el-icon-view"></i> 归档预览</button>
       <div class="preview-box" id="previewBox"></div>
     </span>
+    <button class="btn ghost" id="reqArchiveBtn" disabled title="按《武研项目文档入库清单 v1.4》要求入库清单一键勾选"><i class="el-icon-star-off"></i> 勾选推荐入库</button>
+    <button class="btn ghost" id="methodBtn"><i class="el-icon-reading"></i> 自查方法</button>
+  </div>
+
+  <div class="type-bar" id="typeBar">
+    <b>项目类型</b>
+    <select id="typeSelect"></select>
+    <span class="basis" id="typeBasis"></span>
+    <span class="hint">自动识别仅供参考，请核对后使用；分类不准会导致归档阶段与推荐入库失准</span>
   </div>
 
   <div id="projList" class="panel" style="display:none">
@@ -241,7 +301,20 @@
   <div class="status-line" id="statusLine"></div>
   <div id="resultArea"></div>
 
+  <!-- 自查方法抽屉（数据：selfcheck-method.json，版本 202609） -->
+  <div class="drawer-mask" id="drawerMask"></div>
+  <div class="drawer" id="methodDrawer" role="dialog" aria-label="项目文档自查方法">
+    <div class="drawer-head">
+      <span class="drawer-title">项目文档自查方法</span>
+      <span class="drawer-ver" id="drawerVer">202609</span>
+      <span class="drawer-close" id="drawerClose" title="关闭">✕</span>
+    </div>
+    <div class="drawer-body" id="drawerBody"><div class="drawer-intro">加载中…</div></div>
+    <div class="drawer-foot" id="drawerFoot"></div>
+  </div>
+
   <script src="common/store.js"></script>
+  <script src="workbench.mock.js"></script>
   <script src="workbench.js"></script>
 </body>
 </html>

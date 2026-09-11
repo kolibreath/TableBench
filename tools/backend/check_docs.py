@@ -548,15 +548,16 @@ def check_rule3(headings, text, templates=None):
                         "detail": "未检测到数据迁移内容；若属新建系统替代老系统或数据架构重构类项目，应补充数据迁移策略及验证方法、移植清单、程序、脚本等。",
                         "example": "涉及数据迁移但系统设计书中缺失数据迁移内容。"})
 
-    # 操作5：内容完善度
+    # 操作5：内容完善度（行数级粗检——只能给「提示」，不能代用户判定「通过」）
     lines = [l.strip() for l in text.split("\n") if l.strip() and l.strip() not in ("无", "（可选）")]
     if len(lines) < 15:
         results.append({"op": "操作5（内容完善度）", "status": "提示",
                         "detail": "文档内容较少，可能存在照搬模板、实质内容不足的情况，请人工确认。",
                         "example": "文档内容照搬模板，实质内容较少。"})
     else:
-        results.append({"op": "操作5（内容完善度）", "status": "通过",
-                        "detail": "文档内容较为充实。", "example": ""})
+        results.append({"op": "操作5（内容完善度）", "status": "提示",
+                        "detail": f"正文有效内容约 {len(lines)} 行，篇幅正常；是否覆盖全部功能模块、非照搬模板，请人工确认。",
+                        "example": "多批次需求书共含功能模块40个，而设计书仅有主要功能设计内容。"})
     return results
 
 
