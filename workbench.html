@@ -217,6 +217,18 @@
       list-style: none; padding-left: 20px; position: relative; }
     .drawer-checklist .ck-group li::before { content: "☐"; position: absolute; left: 2px; color: #43a047; }
     .drawer-foot { padding: 10px 20px; font-size: 11.5px; color: #9aa89c; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
+
+    /* 右侧固定把手（形式同估算检查工具的规则表按钮） */
+    .method-btn-fixed {
+      position: fixed; right: 0; top: 50%; transform: translateY(-50%); z-index: 55;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 7px; background: linear-gradient(135deg, #1b5e20, #2e7d32); color: #fff;
+      border-radius: 6px 0 0 6px; cursor: pointer; font-size: 11px; font-weight: 600;
+      font-family: inherit; border: none; box-shadow: 0 2px 10px rgba(27,46,31,.3);
+      letter-spacing: 2px; writing-mode: vertical-rl;
+    }
+    .method-btn-fixed i { writing-mode: horizontal-tb; font-size: 15px; }
+    .method-btn-fixed:hover { background: linear-gradient(135deg, #2e7d32, #43a047); }
   </style>
 </head>
 <body>
@@ -259,7 +271,6 @@
       <div class="preview-box" id="previewBox"></div>
     </span>
     <button class="btn ghost" id="reqArchiveBtn" disabled title="按《武研项目文档入库清单 v1.4》要求入库清单一键勾选"><i class="el-icon-star-off"></i> 勾选推荐入库</button>
-    <button class="btn ghost" id="methodBtn"><i class="el-icon-reading"></i> 自查方法</button>
   </div>
 
   <div class="type-bar" id="typeBar">
@@ -302,6 +313,7 @@
   <div id="resultArea"></div>
 
   <!-- 自查方法抽屉（数据：selfcheck-method.json，版本 202609） -->
+  <button class="method-btn-fixed" id="methodBtn" type="button" title="查看项目文档自查方法"><i class="el-icon-reading"></i>自查方法</button>
   <div class="drawer-mask" id="drawerMask"></div>
   <div class="drawer" id="methodDrawer" role="dialog" aria-label="项目文档自查方法">
     <div class="drawer-head">
