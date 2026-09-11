@@ -473,7 +473,8 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 15px; font-weight: 700;
 }
-.abc-project-menu-name { font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
+/* 头部标题白色：需以含父级的选择器压过下方列表项同名类（.abc-project-menu-name 类名复用） */
+.abc-project-menu-header .abc-project-menu-name { color: #fff; font-size: 15px; font-weight: 700; letter-spacing: 0.02em; }
 
 .abc-project-menu-list { padding: 10px; display: flex; flex-direction: column; gap: 7px; }
 .abc-project-menu-item {

@@ -141,12 +141,12 @@
 
   // 工具菜单（绿色台账风；编号 01-04 对应工作流：项目工作台 → 估算书把关 → 工时把关 → 留痕）
   const MENU_ITEMS = [
-    { icon: 'el-icon-search', idx: '', name: '项目查询', desc: '搜索项目、查看/下载文档', action: 'search' },
-    { icon: 'el-icon-finished', idx: '', name: '进度跟踪', desc: '流程卡在谁那儿一目了然，一键催办', action: 'tracker' },
-    { icon: 'el-icon-folder-opened', idx: '01', name: '项目工作台', desc: '文档检查 + 按产生阶段归档下载', page: 'workbench.html' },
-    { icon: 'el-icon-magic-stick', idx: '02', name: '规模估算书合规检查', desc: '14 条规则 + AI 双引擎（前置/后置）', page: 'estimation.html' },
-    { icon: 'el-icon-data-analysis', idx: '03', name: '工时填报检查', desc: '结项前成员工时误差检查与提醒', action: 'workhours' },
-    { icon: 'el-icon-time', idx: '04', name: '检查历史', desc: '检查记录留痕、回溯与导出', page: 'history.html' },
+    { icon: 'el-icon-search', idx: '01', name: '项目查询', desc: '搜索项目、查看/下载文档', action: 'search' },
+    { icon: 'el-icon-finished', idx: '02', name: '进度跟踪', desc: '流程卡在谁那儿一目了然，一键催办', action: 'tracker' },
+    { icon: 'el-icon-folder-opened', idx: '03', name: '项目工作台', desc: '文档检查 + 按产生阶段归档下载', page: 'workbench.html' },
+    { icon: 'el-icon-magic-stick', idx: '04', name: '规模估算书合规检查', desc: '14 条规则 + AI 双引擎（前置/后置）', page: 'estimation.html' },
+    { icon: 'el-icon-data-analysis', idx: '05', name: '工时填报检查', desc: '结项前成员工时误差检查与提醒', action: 'workhours' },
+    { icon: 'el-icon-time', idx: '06', name: '检查历史', desc: '检查记录留痕、回溯与导出', page: 'history.html' },
   ];
   const menu = document.createElement('div');
   menu.className = 'abc-project-menu';
