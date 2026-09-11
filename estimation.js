@@ -2575,6 +2575,15 @@ window.ItaExtension = {
             self.itaEntryBall = true
           }
         } catch (e) { /* 忽略 */ }
+        // ITA 上下文跳入：悬浮球菜单在 ita.abc 域跳转时自动带 ?itaFrom=1（content.js openExtPage）。
+        // 只放开通道、不注入 payload——用户走页内「搜索并选择 ITA 项目」浮层
+        // （扩展页有 host_permissions http://ita.abc/* 免 CORS，搜索与下载可直连）。
+        // 外网/直接打开不带此参数，保持禁用（Case#3 防呆不回归）。
+        try {
+          if (new URLSearchParams(window.location.search).get('itaFrom') === '1') {
+            self.itaEntryBall = true
+          }
+        } catch (e) { /* 忽略 */ }
         chrome.storage.local.get(['fcPendingItaImport'], function (r) {
           var payload = r.fcPendingItaImport
           if (payload && payload.files && payload.files.length) {
@@ -4673,6 +4682,18 @@ window.__newEstimationApp({
     //  版本检查与自动更新
     // ═══════════════════════════════════════════════════════
 
+    /** 协议拉起后端（projecttool:// 由「安装后端.bat」注册，iframe 方式避免导航离开当前页） */
+    triggerProtocolLaunch() {
+      try {
+        var iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        iframe.src = 'projecttool://start'
+        document.body.appendChild(iframe)
+        setTimeout(function () { iframe.remove() }, 1000)
+        return true
+      } catch (e) { return false }
+    },
+
     /** 检测后端是否运行，不可达时自动拉起 exe，等待就绪后返回 */
     async ensureBackendRunning() {
       // Step 1: 快速检查后端是否已在运行
@@ -4681,9 +4702,19 @@ window.__newEstimationApp({
         if (resp.ok) return  // 后端已在运行
       } catch (e) {}
 
-      // Step 2: 不在运行，触发协议拉起 exe
+      // Step 2: 不在运行，拉起新后端（优先 Native Messaging，与 workbench.js tryStartBackend 同款；
+      // 回退 projecttool:// 协议——两者均由「安装后端.bat」注册。严禁使用 filechecker://：
+      // 那是旧 WPS 工具的残留注册，指向已废弃的 wps_server.exe）
       try {
-        window.location.href = 'filechecker://'
+        var self = this
+        await new Promise(function (resolve) {
+          try {
+            chrome.runtime.sendNativeMessage('com.projecttool.startbackend', { action: 'start' }, function (resp) {
+              if (chrome.runtime.lastError || !(resp && resp.ok)) resolve(self.triggerProtocolLaunch())
+              else resolve(true)
+            })
+          } catch (e) { resolve(self.triggerProtocolLaunch()) }
+        })
       } catch (e) {}
 
       // Step 3: 等待后端启动（最多等 15 秒，每 2 秒检测一次）
