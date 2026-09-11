@@ -855,3 +855,47 @@
   background: var(--abc-panel); border-top: 1px solid var(--abc-border);
 }
 .abc-wh__status.is-err { color: #b71c1c; }
+
+/* ═══ 进度跟踪 · 关注功能（星标 / 关注页签 / 变化摘要条 / 设置条） ═══ */
+.abc-tracker__btn--star { color: var(--abc-muted); }
+.abc-tracker__btn--star.is-on {
+  color: #b8860b; background: #fff8e1; border-color: #ffd591; font-weight: 600;
+}
+.abc-tracker__tab--watch.is-active { background: linear-gradient(135deg, #b8860b, #d4a017); }
+.abc-tracker__clean-inline {
+  font-size: 12px; color: var(--abc-green); padding: 4px 0 2px;
+}
+.abc-tracker__item.is-focus {
+  outline: 2px solid #d4a017; outline-offset: 2px; border-radius: 10px;
+  animation: abcWatchPulse 1s ease 2;
+}
+@keyframes abcWatchPulse {
+  50% { box-shadow: 0 0 0 6px rgba(212, 160, 23, 0.18); }
+}
+.abc-tracker__watchbar {
+  margin: 10px 14px 0; padding: 10px 14px;
+  background: #fff8e1; border: 1px solid #ffd591; border-radius: 10px;
+  font-size: 12.5px; color: #6b5305; line-height: 1.7;
+}
+.abc-tracker__watchbar-head { font-weight: 700; color: #8d6605; margin-bottom: 4px; }
+.abc-tracker__watchbar-line b { color: #1b2e1f; }
+.abc-tracker__settings {
+  cursor: pointer; font-size: 15px; opacity: .85; padding: 2px 6px; color: #fff;
+}
+.abc-tracker__settings:hover { opacity: 1; }
+.abc-tracker__settings-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 10px 14px 0; padding: 10px 14px;
+  background: var(--abc-panel); border: 1px solid var(--abc-border); border-radius: 10px;
+}
+.abc-tracker__settings-label { font-size: 12.5px; font-weight: 600; color: var(--abc-text); }
+.abc-tracker__settings-opt {
+  padding: 5px 12px; background: var(--abc-bg); color: var(--abc-muted);
+  border: 1px solid var(--abc-border); border-radius: 14px; cursor: pointer;
+  font-size: 12px; font-family: inherit;
+}
+.abc-tracker__settings-opt:hover { border-color: var(--abc-green-soft); color: var(--abc-green); }
+.abc-tracker__settings-opt.is-on {
+  background: var(--abc-green); border-color: var(--abc-green); color: #fff; font-weight: 600;
+}
+.abc-tracker__settings-note { font-size: 11px; color: var(--abc-muted); margin-left: auto; }

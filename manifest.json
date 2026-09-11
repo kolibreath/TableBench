@@ -9,7 +9,9 @@
     "scripting",
     "cookies",
     "storage",
-    "nativeMessaging"
+    "nativeMessaging",
+    "alarms",
+    "notifications"
   ],
   "host_permissions": [
     "http://ita.abc/*",
@@ -46,6 +48,7 @@
       ],
       "js": [
         "content.js",
+        "tracker-watch.js",
         "content.tracker.js",
         "content.workhours.js"
       ],
