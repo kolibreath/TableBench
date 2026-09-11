@@ -188,7 +188,8 @@
     return data;
   };
 
-  // 成员明细（query 传参；响应为裸数组）
+  // 成员明细（prjid/year/month 走 query；表单为空分页参数——与抓包一致，
+  // 勿把 year/month 塞进 body，服务端只从 query 取时间参数）
   const apiGridDtlByMonth = async (prjid, year) => {
     if (MOCK) {
       mockCalls.dtl += 1;
@@ -197,7 +198,7 @@
     const resp = await fetch(URL_DTL + '?prjid=' + encodeURIComponent(prjid) +
       '&year=' + year + '&month=1', {
       method: 'POST', headers: xhrHeaders, credentials: 'include',
-      body: 'year=' + year + '&month=1',
+      body: 'pageSize=&page=',
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
