@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import io
 import json
 import os
 import shutil
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import threading
 import time
+import zipfile
 
 if getattr(sys, 'frozen', False):
     sys.path.insert(0, sys._MEIPASS)
@@ -57,6 +59,48 @@ app = Flask(__name__)
 from history_api import bp as history_api_bp  # noqa: E402
 
 app.register_blueprint(history_api_bp)
+
+# ── 归档打包：前端把（已带登录态下载的）文档批量 POST 上来，按相对路径打 zip 返回 ──
+@app.route("/api/archive", methods=["POST"])
+def api_archive():
+    # 响应需带 CORS 头：查询面板内容脚本（ita.abc 页面）直连本接口
+    try:
+        count = int(request.form.get("count") or 0)
+    except ValueError:
+        count = 0
+    try:
+        paths = json.loads(request.form.get("paths") or "[]")
+    except ValueError:
+        paths = []
+    if count <= 0:
+        return jsonify({"ok": False, "error": "no files"}), 400
+
+    buf = io.BytesIO()
+    seen: set[str] = set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for i in range(count):
+            f = request.files.get(f"f{i}")
+            if f is None:
+                continue
+            rel = paths[i] if i < len(paths) and paths[i] else (f.filename or f"file_{i}")
+            # 防路径穿越：仅保留相对段
+            rel = "/".join(seg for seg in rel.replace("\\", "/").split("/") if seg not in ("", ".", ".."))
+            if not rel:
+                rel = f"file_{i}"
+            if rel in seen:  # 重名自动加序号
+                base, ext = os.path.splitext(rel)
+                n = 2
+                while f"{base}({n}){ext}" in seen:
+                    n += 1
+                rel = f"{base}({n}){ext}"
+            seen.add(rel)
+            zf.writestr(rel, f.read())
+
+    stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    resp = app.response_class(buf.getvalue(), mimetype="application/zip")
+    resp.headers["Content-Disposition"] = f'attachment; filename="archive_{stamp}.zip"'
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 _batch_docs: dict[str, dict] = {}
 

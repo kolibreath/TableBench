@@ -34,6 +34,59 @@
   };
   const mockData = () => (window.__abcWorkbenchMockData || MOCK_FALLBACK);
 
+  // ── 本地文档索引（P1）：缓存已展开/已索引项目的文档列表，支撑跨项目文档名检索 ──
+  // 存储 chrome.storage.local fcDocIndex；滚动保留最近 50 个项目，非扩展环境仅内存生效
+  const DOC_INDEX_KEY = 'fcDocIndex';
+  const DOC_INDEX_MAX = 50;
+  let docIndex = null; // 会话内缓存（避免渲染期反复读 storage）
+  const indexLoad = async () => {
+    if (docIndex) return docIndex;
+    try {
+      docIndex = await new Promise((resolve) => {
+        try {
+          chrome.storage.local.get([DOC_INDEX_KEY], (res) => {
+            void (chrome.runtime && chrome.runtime.lastError);
+            resolve((res && res[DOC_INDEX_KEY]) || {});
+          });
+        } catch (e) { resolve({}); }
+      });
+    } catch (e) { docIndex = {}; }
+    return docIndex;
+  };
+  const indexSaveEntry = async (prjid, meta, files) => {
+    await indexLoad();
+    docIndex[prjid] = {
+      projname: meta.projname || '', projectno: meta.projectno || '',
+      files, at: Date.now(),
+    };
+    const keys = Object.keys(docIndex);
+    if (keys.length > DOC_INDEX_MAX) { // 淘汰最旧
+      keys.sort((a, b) => (docIndex[a].at || 0) - (docIndex[b].at || 0));
+      keys.slice(0, keys.length - DOC_INDEX_MAX).forEach((k) => delete docIndex[k]);
+    }
+    try { await chrome.storage.local.set({ [DOC_INDEX_KEY]: docIndex }); } catch (e) { /* 非扩展环境仅内存 */ }
+  };
+
+  // 项目详情 → 文档列表（真实/沙箱统一入口；loadDocs 与「建索引」共用）
+  const fetchDetailFiles = async (prjid) => {
+    if (MOCK) return mockData().files[prjid] || [];
+    const response = await fetch(API_DETAIL_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: `bizdomain=0&prjid=${encodeParam(prjid)}`,
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const result = await response.json();
+    const detail = result && result.data && result.data[0] ? result.data[0] : null;
+    return detail ? (detail.fileList || []) : [];
+  };
+
   // 统一经后台打开扩展页：tabs.create 不受 web_accessible_resources origin 白名单限制。
   // 上下文失效（扩展重载后旧页面里的孤儿脚本）绝不能回退 window.open——非白名单页
   // 会弹「已被屏蔽」，此时唯一正确动作是提示用户刷新页面并重新注入。
@@ -139,6 +192,41 @@
         resolve({ done: 0, failed: files.length });
       }
     });
+  };
+
+  // 打包 zip（P2）：前端带登录态逐个下载 → POST 本地后端 /api/archive → 返回 zip 落盘。
+  // 并发 3；失败抛错由调用方降级为逐个下载
+  const archiveZip = async (files, onProgress) => {
+    const fd = new FormData();
+    const paths = [];
+    let done = 0;
+    const queue = files.map((f, i) => ({ f, i }));
+    const safe = (s) => String(s || '').replace(/[\\/:*?"<>|]/g, '_');
+    const worker = async () => {
+      while (queue.length) {
+        const { f, i } = queue.shift();
+        const resp = await fetch(buildDownloadUrl(f), { credentials: 'include' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${f.namFile || ''}`);
+        fd.append('f' + i, await resp.blob(), safe(f.namFile || f.nmlName || `file_${i}`));
+        paths[i] = safe(f.fileType || f.typSecValue || '未分类文档') + '/' + safe(f.namFile || f.nmlName || `file_${i}`);
+        done += 1;
+        onProgress && onProgress(done);
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    fd.append('count', String(files.length));
+    fd.append('paths', JSON.stringify(paths));
+    const resp = await fetch('http://127.0.0.1:8765/api/archive', { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error('打包接口 HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '归档_' + new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '') + '.zip';
+    panel.appendChild(a);
+    a.click();
+    panel.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    return files.length;
   };
 
   // 打开项目工作台（storage 移交文件列表，免去工作台重复拉取；失败降级为逐个原生下载）
@@ -252,6 +340,7 @@
       <div class="abc-project-search-row">
         <input type="text" id="abc-project-input" placeholder="请输入项目名称">
         <button class="abc-project-btn" id="abc-project-search">查询</button>
+        <button class="abc-project-btn abc-project-indexbtn" id="abc-project-index" title="为当前结果的所有项目拉取文档列表并建立本地索引（供跨项目按文档名检索）">建索引</button>
       </div>
       <div id="abc-project-result"></div>
       <button class="abc-project-totop" id="abc-project-totop" title="回到顶部"><i class="el-icon-top"></i> 顶部</button>
@@ -443,6 +532,7 @@
     // 缓存每个项目的完整元数据（后置合规检查需要 projectno/projname/projtype）
     window.__abcProjMap = window.__abcProjMap || {};
     window.__abcProjMeta = window.__abcProjMeta || {};
+    window.__abcLastProjects = data; // 供「建索引」遍历当前结果
     data.forEach((item) => {
       if (!item.prjid) return;
       window.__abcProjMap[item.prjid] = item.projtype || '';
@@ -659,9 +749,14 @@
       const selAll = docsDiv.querySelector('.abc-doc-selall');
       selAll.checked = allChecked;
       const batchBtn = docsDiv.querySelector('.abc-doc-batch');
+      const zipBtn = docsDiv.querySelector('.abc-doc-zip');
       if (batchBtn.dataset.busy !== '1') {
         batchBtn.innerHTML = `<i class="el-icon-download"></i> 下载选中（${state.sel.size}）`;
         batchBtn.disabled = state.sel.size === 0;
+      }
+      if (zipBtn.dataset.busy !== '1') {
+        zipBtn.innerHTML = `<i class="el-icon-folder-opened"></i> 打包 zip（${state.sel.size}）`;
+        zipBtn.disabled = state.sel.size === 0;
       }
     };
 
@@ -695,8 +790,9 @@
       <div class="abc-project-doc-list"></div>
       <div class="abc-project-doc-batchbar">
         <button class="abc-project-doc-btn abc-doc-batch" disabled><i class="el-icon-download"></i> 下载选中（0）</button>
+        <button class="abc-project-doc-btn abc-doc-zip" disabled title="把选中文档按类型分目录打进一个 zip（需本地后端）"><i class="el-icon-folder-opened"></i> 打包 zip（0）</button>
         <button class="abc-project-doc-btn abc-doc-clear">清空选择</button>
-        <span class="abc-project-doc-batchnote">勾选文档后可批量下载</span>
+        <span class="abc-project-doc-batchnote">勾选文档后可批量下载或打包 zip（需本地后端）</span>
       </div>
     `;
     render();
@@ -743,6 +839,33 @@
       if (e.target.closest('.abc-doc-clear')) {
         state.sel.clear();
         render();
+        return;
+      }
+      // 打包 zip（P2）：失败自动降级为逐个下载
+      const zipBtn = e.target.closest('.abc-doc-zip');
+      if (zipBtn && zipBtn.dataset.busy !== '1') {
+        const files = [...state.sel].map((i) => fileList[i]).filter(Boolean);
+        if (!files.length) return;
+        if (MOCK) {
+          zipBtn.textContent = '沙箱已模拟打包';
+          setTimeout(() => render(), 1500);
+          return;
+        }
+        zipBtn.dataset.busy = '1';
+        zipBtn.textContent = `打包中 0/${files.length}…`;
+        try {
+          const n = await archiveZip(files, (done) => { zipBtn.textContent = `打包中 ${done}/${files.length}…`; });
+          zipBtn.textContent = `已打包 ${n} 个文件（zip）`;
+        } catch (err) {
+          console.error('打包 zip 失败，降级为逐个下载:', err);
+          zipBtn.textContent = '打包失败，已改用逐个下载…';
+          const res = await batchDownload(files);
+          zipBtn.textContent = `已逐个下载 ${res.done} 个${res.failed ? '，失败 ' + res.failed : ''}`;
+        }
+        delete zipBtn.dataset.busy;
+        state.sel.clear();
+        render();
+        setTimeout(() => render(), 2500);
       }
     });
   };
@@ -764,33 +887,9 @@
     btn.disabled = true;
 
     try {
-      if (MOCK) {
-        // 沙箱：直接取模拟数据集里的文档列表
-        docsDiv.dataset.loaded = 'true';
-        docsDiv.style.display = 'block';
-        showDocs(prjid, mockData().files[prjid] || []);
-        btn.innerHTML = '<i class="el-icon-document"></i> 收起文档';
-        return;
-      }
-      const cookie = await getCookies();
-      const response = await fetch(API_DETAIL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'X-Requested-With': 'XMLHttpRequest' // ITA ajax 请求标配（抓包佐证）
-        },
-        body: `bizdomain=0&prjid=${encodeParam(prjid)}`,
-        credentials: 'include' // 同源请求自动携带登录 Cookie，无需手动设置
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const result = await response.json();
-      const detail = result && result.data && result.data[0] ? result.data[0] : null;
-      const fileList = detail ? detail.fileList : [];
-
+      const fileList = await fetchDetailFiles(prjid);
+      const meta = (window.__abcProjMeta || {})[prjid] || {};
+      indexSaveEntry(prjid, meta, fileList); // 写入本地文档索引（跨项目检索用）
       docsDiv.dataset.loaded = 'true';
       showDocs(prjid, fileList);
       btn.innerHTML = '<i class="el-icon-document"></i> 收起文档';
@@ -800,6 +899,54 @@
     } finally {
       btn.disabled = false;
     }
+  };
+
+  // 渲染项目结果，并追加本地索引的跨项目文档匹配（P1）
+  const renderResults = async (rows, projname) => {
+    if (rows.length > 0) {
+      showProjects(rows);
+    } else {
+      showStatus('没有找到相关项目。换个关键词试试，或清空输入后查询全部项目。');
+    }
+    await renderDocMatches(projname.trim());
+  };
+
+  // 跨项目文档检索：在本地文档索引中按关键词匹配文档名/类型，追加到项目结果尾部
+  const renderDocMatches = async (kw) => {
+    const old = resultDiv.querySelector('.abc-docsearch');
+    if (old) old.remove();
+    if (!kw) return;
+    const index = await indexLoad();
+    const lower = kw.toLowerCase();
+    const matches = [];
+    Object.keys(index).forEach((prjid) => {
+      const entry = index[prjid] || {};
+      (entry.files || []).forEach((f) => {
+        const name = f.namFile || f.nmlName || '';
+        const type = f.fileType || f.typSecValue || '文档';
+        if (name.toLowerCase().includes(lower) || type.toLowerCase().includes(lower)) {
+          matches.push({ prjid: prjid, projname: entry.projname || prjid, f: f });
+        }
+      });
+    });
+    if (!matches.length) return;
+    const limited = matches.slice(0, 50);
+    window.__abcDocMatches = limited;
+    const sec = document.createElement('div');
+    sec.className = 'abc-docsearch';
+    sec.innerHTML =
+      '<div class="abc-docsearch-head"><i class="el-icon-search"></i> 文档检索（本地索引）· 匹配 ' + matches.length + ' 份' +
+      (matches.length > limited.length ? '，显示前 ' + limited.length + ' 份' : '') +
+      '<span class="abc-docsearch-note">基于已建索引的项目文档（展开文档或点「建索引」即入索引）；点项目名跳转</span></div>' +
+      limited.map((m, i) =>
+        '<div class="abc-docsearch-row">' +
+        '<button class="abc-docsearch-proj" data-prjid="' + m.prjid + '" title="跳转到该项目">' + m.projname + '</button>' +
+        '<span class="abc-docsearch-type">' + (m.f.fileType || m.f.typSecValue || '文档') + '</span>' +
+        '<a class="abc-docsearch-link" data-mi="' + i + '" href="javascript:void(0)" title="点击下载">' + (m.f.namFile || '未命名文档') + '</a>' +
+        '<span class="abc-docsearch-meta">' + (m.f.userName || '-') + ' · ' + String(m.f.timeUpl || '-').split('.')[0] + ' · ' + formatSize(m.f.fileSize) + '</span>' +
+        '</div>'
+      ).join('');
+    resultDiv.appendChild(sec);
   };
 
   // 执行查询
@@ -813,13 +960,8 @@
         // 沙箱：不发起网络请求，按关键字过滤模拟数据（200ms 延迟保留加载反馈）
         await new Promise((resolve) => setTimeout(resolve, 200));
         const kw = projname.toLowerCase();
-        const rows = mockData().projects.filter((p) =>
-          !kw || String(p.projname || '').toLowerCase().includes(kw) || String(p.projectno || '').toLowerCase().includes(kw));
-        if (rows.length > 0) {
-          showProjects(rows);
-        } else {
-          showStatus('没有找到相关项目。换个关键词试试，或清空输入后查询全部项目。');
-        }
+        renderResults(mockData().projects.filter((p) =>
+          !kw || String(p.projname || '').toLowerCase().includes(kw) || String(p.projectno || '').toLowerCase().includes(kw)), projname);
         return;
       }
       const cookie = await getCookies();
@@ -839,11 +981,7 @@
       }
 
       const result = await response.json();
-      if (result.data && result.data.length > 0) {
-        showProjects(result.data);
-      } else {
-        showStatus('未找到符合条件的项目');
-      }
+      renderResults((result.data && result.data.length > 0) ? result.data : [], projname);
     } catch (error) {
       console.error('查询失败:', error);
       resultDiv.innerHTML = `<div class="abc-project-error">错误: ${error.message || '网络请求失败'}</div>`;
@@ -919,6 +1057,35 @@
 
   searchBtn.addEventListener('click', search);
 
+  // 建索引：为当前结果的所有项目拉取文档列表写入本地索引（跨项目检索的数据来源）
+  const indexBtn = panel.querySelector('#abc-project-index');
+  indexBtn.addEventListener('click', async () => {
+    const projects = window.__abcLastProjects || [];
+    if (!projects.length) {
+      indexBtn.textContent = '先查询项目';
+      setTimeout(() => { indexBtn.textContent = '建索引'; }, 1500);
+      return;
+    }
+    indexBtn.disabled = true;
+    let done = 0;
+    const queue = projects.slice();
+    const worker = async () => {
+      while (queue.length) {
+        const p = queue.shift();
+        try {
+          await indexSaveEntry(p.prjid, p, await fetchDetailFiles(p.prjid));
+        } catch (err) { /* 单项目失败跳过，不阻塞其余 */ }
+        done += 1;
+        indexBtn.textContent = `建索引 ${done}/${projects.length}`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    indexBtn.disabled = false;
+    indexBtn.textContent = `索引完成（${projects.length}）`;
+    setTimeout(() => { indexBtn.textContent = '建索引'; }, 2000);
+    await renderDocMatches(input.value.trim()); // 已有关键字则刷新文档匹配区
+  });
+
   input.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       search();
@@ -927,6 +1094,26 @@
 
   // 文档按钮事件委托
   resultDiv.addEventListener('click', (e) => {
+    // 跨项目文档检索：下载 / 跳转项目
+    const dsLink = e.target.closest('.abc-docsearch-link');
+    if (dsLink) {
+      const m = (window.__abcDocMatches || [])[Number(dsLink.dataset.mi)];
+      if (m) downloadFile(Object.assign({}, m.f));
+      return;
+    }
+    const dsProj = e.target.closest('.abc-docsearch-proj');
+    if (dsProj) {
+      const btn = resultDiv.querySelector('.abc-project-doc-btn[data-prjid="' + dsProj.dataset.prjid + '"]');
+      if (btn) {
+        const card = btn.closest('.abc-project-card');
+        if (card && !card.classList.contains('is-open')) card.querySelector('.abc-project-card-head').click();
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        showStatus('该项目不在当前结果里，请清空关键字重新查询。');
+      }
+      return;
+    }
+
     // 展开/收起完整字段（台账行：行内任意位置，「项目文档」按钮除外）
     const head = e.target.closest('.abc-project-card-head');
     if (head && !e.target.closest('.abc-project-doc-btn')) {

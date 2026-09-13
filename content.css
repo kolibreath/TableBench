@@ -235,6 +235,72 @@
   background: #ccc;
   cursor: not-allowed;
 }
+.abc-project-indexbtn {
+  background: #fff;
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
+  white-space: nowrap;
+}
+.abc-project-indexbtn:hover { background: var(--abc-panel); }
+.abc-project-indexbtn:disabled { background: var(--abc-panel); color: var(--abc-muted); }
+
+/* 跨项目文档检索（本地索引）：项目跳转 + 文档名下载 */
+.abc-docsearch {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--abc-border);
+}
+.abc-docsearch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--abc-green-deep);
+  margin-bottom: 8px;
+}
+.abc-docsearch-note { font-size: 11.5px; font-weight: 400; color: var(--abc-muted); }
+.abc-docsearch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fafafa;
+  border: 1px solid var(--abc-border);
+  border-radius: 8px;
+  margin-bottom: 5px;
+  font-size: 12.5px;
+}
+.abc-docsearch-proj {
+  flex-shrink: 0;
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--abc-bg);
+  color: var(--abc-green);
+  border: 1px solid var(--abc-green-soft);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+}
+.abc-docsearch-proj:hover { background: var(--abc-green); color: #fff; }
+.abc-docsearch-type { flex-shrink: 0; color: var(--abc-muted); }
+.abc-docsearch-link {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--abc-green);
+  text-decoration: none;
+  cursor: pointer;
+}
+.abc-docsearch-link:hover { text-decoration: underline; color: var(--abc-green-bright); }
+.abc-docsearch-meta { flex-shrink: 0; color: var(--abc-muted); font-size: 11.5px; }
 .abc-project-checkbtn {
   background: #fff;
   color: var(--abc-green);
