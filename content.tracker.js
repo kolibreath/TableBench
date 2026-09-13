@@ -114,6 +114,9 @@
   if (MOCK) runSelfTest();
 
   // ── mock 数据（复刻抓包真实场景；人名/项目名/编号均为虚构） ──
+  // 外部数据集覆盖：mock-data/tracker-mock-data.js 先于本文件加载时定义 globalThis.__abcTrackerMockData，
+  // 下方各 MOCK_* 整体替换为外部同构数据；未加载时内置数据生效，行为与历史版本完全一致。
+  const EXT = (typeof globalThis !== 'undefined' && globalThis.__abcTrackerMockData) || null;
   const MOCK_HTML_REVIEW = '<html><script>' +
     "showtasktip('申请', ' <tr><td>赵丙</td><td>2026-09-10 08:48:05</td><td></td><td></td><td></td><td>待处理</td></tr>')" +
     "showtasktip('出具意见', ' <tr><td>周己</td><td>2026-09-09 15:12:00</td><td>周己</td><td>评审意见：通过。</td><td>2026-09-09 16:34:34</td><td>完成</td></tr>" +
@@ -128,7 +131,7 @@
     '<\/script></html>';
 
   // 职能组清单（searchProj4GrpLeader）：响应自带 processList 实际数据 + projManClurl
-  const MOCK_GRP = [
+  const MOCK_GRP = (EXT && EXT.grp) || [
     { prjid: 'PRJZH0077001', projname: '渠道整合平台三期', projectno: '农银科项字【2026】第0747号',
       projManClurl: 'abcteams://?who=990029505&where=ITA&how=gotoSingleChat&targetUserName=' + encodeURIComponent('陈四') + '&targetUsapId=990029505',
       processList: [
@@ -142,21 +145,21 @@
   const mockCalls = MOCK ? (window.__trackerMockCalls = { grid: 0, managed: 0, grp: 0, proj: 0, img: 0, overview: 0 }) : null;
 
   // 我参与的（bindWcydGrid 双年份合并去重后的清单）
-  const MOCK_GRID = [
+  const MOCK_GRID = (EXT && EXT.grid) || [
     { prjid: 'PRJZH0090001', projname: '账务核心系统升级项目', projectno: '科维2026-0901' },
     { prjid: 'PRJZH0026003', projname: '智能风控平台二期', projectno: 'XRK2026003' },
   ];
   // 我管理的（myManagedProj）：status=1 在管项目与「我参与的」项目1 重叠（验证跨页签缓存共享）
-  const MOCK_MANAGED_ACTIVE = [
+  const MOCK_MANAGED_ACTIVE = (EXT && EXT.managedActive) || [
     { prjid: 'PRJZH0090001', projname: '账务核心系统升级项目', projectno: '科维2026-0901',
       projManClurl: 'abcteams://?who=990000010&where=ITA&how=gotoSingleChat&targetUserName=' + encodeURIComponent('冯癸') + '&targetUsapId=990000010' },
   ];
   // status=5 运维结项项目：processList 为空 → 无运行中流程
-  const MOCK_MANAGED_OPS = [
+  const MOCK_MANAGED_OPS = (EXT && EXT.managedOps) || [
     { prjid: 'PRJZH0090099', projname: '核心账务平台运维保障', projectno: '科维2025-0999', projManClurl: '' },
   ];
 
-  const MOCK_PROJ = {
+  const MOCK_PROJ = (EXT && EXT.proj) || {
     PRJZH0090001: {
       projname: '账务核心系统升级项目',
       // 角色 Clurl 组（姓名→900 工号）：「我参与的」页签按概况返回的经理姓名反查工号
@@ -180,7 +183,7 @@
     },
   };
   // searchProj2022 概况 mock：项目1 有项目经理（周己），项目2 无（按钮隐藏场景）
-  const MOCK_OVERVIEW = {
+  const MOCK_OVERVIEW = (EXT && EXT.overview) || {
     '账务核心系统升级项目': [
       { prjid: 'PRJZH0090001', projMan: '周己', projManID: 'zhouji' },
     ],
@@ -320,6 +323,10 @@
   const apiImage = async (idProc) => {
     if (MOCK) {
       mockCalls.img += 1;
+      // 外部数据集优先（mock-data/tracker-mock-data.js 的 flowHtml 按 idProc 索引）
+      if (EXT && EXT.flowHtml && Object.prototype.hasOwnProperty.call(EXT.flowHtml, idProc)) {
+        return EXT.flowHtml[idProc];
+      }
       if (idProc === 6341400000000007) return MOCK_HTML_REVIEW;
       if (idProc === 6338439828800001) return MOCK_HTML_CHECK;
       if (idProc === 770000001) return MOCK_HTML_GRP;
@@ -509,6 +516,50 @@
   };
 
   // ══════════════════════════════════════════════════════════
+  //  催办话术模板：⚙ 设置中可自定义，占位符在复制时替换
+  //  存储 chrome.storage.local fcUrgeTemplate（非扩展环境退回默认值）
+  // ══════════════════════════════════════════════════════════
+  const URGE_KEY = 'fcUrgeTemplate';
+  const URGE_DEFAULT = '{处理人}您好，「{项目}」的「{流程}」流程目前在「{环节}」环节已等待 {等待}，麻烦您方便时跟进处理，如有疑问欢迎随时沟通，谢谢！';
+  const URGE_VARS = [
+    { key: '{项目}', desc: '项目名称' },
+    { key: '{流程}', desc: '流程名称' },
+    { key: '{环节}', desc: '卡点环节' },
+    { key: '{处理人}', desc: '待处理人' },
+    { key: '{等待}', desc: '已等待时长' },
+  ];
+  // 预览样例（与 mock 数据同一套脱敏人名）
+  const URGE_SAMPLE = { proj: '账务核心系统升级项目', flow: '代码检查(第2次)', node: '代码检查', person: '钱丁', wait: '22 小时 22 分' };
+  let urgeText = URGE_DEFAULT; // 渲染期取值，open() 时异步装载
+  const renderUrge = (tpl, ctx) => String(tpl || URGE_DEFAULT)
+    .replace(/\{项目\}/g, ctx.proj)
+    .replace(/\{流程\}/g, ctx.flow)
+    .replace(/\{环节\}/g, ctx.node)
+    .replace(/\{处理人\}/g, ctx.person)
+    .replace(/\{等待\}/g, ctx.wait);
+  const Urge = {
+    async get() {
+      try {
+        const r = await new Promise((resolve) => {
+          try {
+            chrome.storage.local.get([URGE_KEY], (res) => {
+              void (chrome.runtime && chrome.runtime.lastError); // 规避未检查告警，读失败即用默认
+              resolve((res && res[URGE_KEY]) || null);
+            });
+          } catch (e) { resolve(null); }
+        });
+        return (typeof r === 'string' && r.trim()) ? r : URGE_DEFAULT;
+      } catch (e) { return URGE_DEFAULT; }
+    },
+    async save(tpl) {
+      const val = (tpl && tpl.trim()) ? tpl : URGE_DEFAULT;
+      urgeText = val;
+      try { await chrome.storage.local.set({ [URGE_KEY]: val }); } catch (e) { /* 非扩展环境仅内存生效 */ }
+      return val;
+    },
+  };
+
+  // ══════════════════════════════════════════════════════════
   //  关注功能（流程级）：storage 结构 / 星标 / 「★ 关注」视图 / 设置 / 被动摘要
   //  轮询与系统通知在 background SW（alarms 周期由 intervalMin 驱动）
   // ══════════════════════════════════════════════════════════
@@ -588,7 +639,7 @@
     const list = listEl('watch');
     list.innerHTML = '';
     if (!prjids.length) {
-      summary.innerHTML = '<span class="abc-tracker__loading">暂无关注——在流程条目右侧点 ☆ 关注后，流程有变动会在这里汇总并通知</span>';
+      summary.innerHTML = '<span class="abc-tracker__loading">暂无关注——在流程条目右侧点 <i class="el-icon-star-off"></i> 关注后，流程有变动会在这里汇总并通知</span>';
       return;
     }
     summary.innerHTML = '<span class="abc-tracker__loading">正在获取 ' + prjids.length + ' 个关注项目…</span>';
@@ -612,18 +663,18 @@
             '<div class="abc-tracker__item"><div class="abc-tracker__item-main">' +
             '<div class="abc-tracker__proj">' + esc(r.projname) + '</div>' +
             '<div class="abc-tracker__flow">' + esc(f.flowName) + '</div>' +
-            '<div class="abc-tracker__clean-inline">✓ 当前无卡点（流程可能已推进完成）</div></div>' +
+            '<div class="abc-tracker__clean-inline"><i class="el-icon-circle-check"></i> 当前无卡点（流程可能已推进完成）</div></div>' +
             '<div class="abc-tracker__actions"><button class="abc-tracker__btn" data-act="watch-toggle" data-prjid="' + esc(r.prjid) +
-            '" data-proj="' + esc(r.projname) + '" data-flow="' + esc(f.flowName) + '" data-proc="' + esc(f.idProc) + '">✕ 取消关注</button></div></div>');
+            '" data-proj="' + esc(r.projname) + '" data-flow="' + esc(f.flowName) + '" data-proc="' + esc(f.idProc) + '"><i class="el-icon-close"></i> 取消关注</button></div></div>');
           return;
         }
         changes++;
         let html = flowItemHtml(r, f);
         // 关注视图条目追加 ✕ 取消关注按钮（插到 actions 组首）
-        html = html.replace('<div class="abc-tracker__actions">',
+          html = html.replace('<div class="abc-tracker__actions">',
           '<div class="abc-tracker__actions"><button class="abc-tracker__btn" data-act="watch-toggle" data-prjid="' + esc(r.prjid) +
-          '" data-proj="' + esc(r.projname) + '" data-flow="' + esc(f.flowName) + '" data-proc="' + esc(f.idProc) +
-          '" title="取消关注该流程">★ 已关注</button>');
+            '" data-proj="' + esc(r.projname) + '" data-flow="' + esc(f.flowName) + '" data-proc="' + esc(f.idProc) +
+            '" title="取消关注该流程"><i class="el-icon-star-on"></i> 已关注</button>');
         list.insertAdjacentHTML('afterbegin', html);
       });
     });
@@ -632,7 +683,7 @@
       '<span class="abc-tracker__sep">·</span>' +
       '<span class="abc-tracker__cell">被关注流程 <span class="abc-tracker__num">' + Watch.watchedCount() + '</span> 条</span>';
     if (!changes) {
-      list.innerHTML = '<div class="abc-tracker__empty">被关注的流程当前均无卡点 🎉</div>';
+      list.innerHTML = '<div class="abc-tracker__empty"><i class="el-icon-circle-check"></i> 被关注的流程当前均无卡点</div>';
     }
   };
 
@@ -646,7 +697,7 @@
     const more = changes.length > 3 ? '<div class="abc-tracker__watchbar-line">…等 ' + changes.length + ' 条更新</div>' : '';
     root.querySelector('.abc-tracker__tabs').insertAdjacentHTML('beforebegin',
       '<div class="abc-tracker__watchbar">' +
-      '<div class="abc-tracker__watchbar-head">🔔 自上次查看，' + changes.length + ' 条关注流程有更新</div>' +
+      '<div class="abc-tracker__watchbar-head"><i class="el-icon-bell"></i> 自上次查看，' + changes.length + ' 条关注流程有更新</div>' +
       lines + more + '</div>');
   };
 
@@ -658,23 +709,57 @@
     } catch (e) { /* 非扩展环境 */ }
   };
 
-  // ── 设置条（轮询间隔档位 + 手动检查） ──
+  // ── 设置条（轮询间隔档位 + 手动检查 + 催办话术模板） ──
   const toggleSettings = async () => {
     let bar = root.querySelector('.abc-tracker__settings-bar');
     if (bar) { bar.remove(); return; }
     const w = await Watch.get();
+    const tpl = await Urge.get();
     const cur = INTERVALS.includes(w.intervalMin) ? w.intervalMin : 10;
     bar = document.createElement('div');
     bar.className = 'abc-tracker__settings-bar';
     bar.innerHTML =
+      '<div class="abc-tracker__settings-row">' +
       '<span class="abc-tracker__settings-label">关注轮询间隔</span>' +
       INTERVALS.map((m) =>
         '<button class="abc-tracker__settings-opt' + (m === cur ? ' is-on' : '') + '" data-min="' + m + '">' + m + ' 分钟</button>').join('') +
       '<button class="abc-tracker__settings-opt" data-act-poll="1">立即检查更新</button>' +
-      '<span class="abc-tracker__settings-note">仅浏览器开启时生效</span>';
+      '<span class="abc-tracker__settings-note">仅浏览器开启时生效</span>' +
+      '</div>' +
+      '<div class="abc-tracker__settings-row abc-tracker__settings-row--col">' +
+      '<span class="abc-tracker__settings-label">催办话术模板</span>' +
+      '<div class="abc-tracker__urge-editor">' +
+      '<textarea class="abc-tracker__urge-text" rows="2" spellcheck="false">' + esc(tpl) + '</textarea>' +
+      '<div class="abc-tracker__urge-vars">' +
+      URGE_VARS.map((v) =>
+        '<button type="button" class="abc-tracker__settings-opt abc-tracker__urge-var" data-urge-var="' + v.key +
+        '" title="插入' + esc(v.desc) + '（复制催办话术时替换为实际值）">' + v.key + '</button>').join('') +
+      '<span class="abc-tracker__settings-note">点变量插入到光标处</span>' +
+      '</div>' +
+      '<div class="abc-tracker__urge-preview">' +
+      '<span class="abc-tracker__urge-preview-label">预览</span>' +
+      '<span class="abc-tracker__urge-preview-text"></span>' +
+      '</div>' +
+      '<div class="abc-tracker__urge-ops">' +
+      '<button type="button" class="abc-tracker__settings-opt" data-urge-act="reset">恢复默认文案</button>' +
+      '<button type="button" class="abc-tracker__settings-opt is-primary" data-urge-act="save">保存模板</button>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
     root.querySelector('.abc-tracker__head').insertAdjacentElement('afterend', bar);
+
+    // 预览：随输入即时以样例数据渲染（所见即复制所得）
+    const updateUrgePreview = () => {
+      const ta = bar.querySelector('.abc-tracker__urge-text');
+      const el = bar.querySelector('.abc-tracker__urge-preview-text');
+      if (ta && el) el.textContent = renderUrge(ta.value, URGE_SAMPLE);
+    };
+    updateUrgePreview();
+    const ta = bar.querySelector('.abc-tracker__urge-text');
+    if (ta) ta.addEventListener('input', updateUrgePreview);
+
     bar.addEventListener('click', async (e) => {
-      const opt = e.target.closest('.abc-tracker__settings-opt');
+      const opt = e.target.closest('[data-min],[data-act-poll],[data-urge-var],[data-urge-act]');
       if (!opt) return;
       if (opt.dataset.min) {
         await Watch.setInterval(Number(opt.dataset.min));
@@ -687,6 +772,28 @@
           await chrome.runtime.sendMessage({ type: 'WATCH_POLL_NOW' });
         } catch (err) { /* SW 未就绪时静默 */ }
         setTimeout(() => { opt.textContent = '立即检查更新'; }, 1500);
+      } else if (opt.dataset.urgeVar) {
+        // 变量 chip：插入到光标处（替换选中段），保持焦点
+        if (!ta) return;
+        const ins = opt.dataset.urgeVar;
+        const s = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+        const t2 = ta.selectionEnd == null ? s : ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + ins + ta.value.slice(t2);
+        const pos = s + ins.length;
+        ta.focus();
+        ta.setSelectionRange(pos, pos);
+        updateUrgePreview();
+      } else if (opt.dataset.urgeAct === 'save') {
+        if (!ta) return;
+        opt.textContent = '保存中…';
+        await Urge.save(ta.value);
+        opt.innerHTML = '<i class="el-icon-check"></i> 已保存';
+        setTimeout(() => { opt.textContent = '保存模板'; }, 1500);
+        loadTab(activeTab, false); // 重建条目，让新话术立刻生效
+      } else if (opt.dataset.urgeAct === 'reset') {
+        if (!ta) return;
+        ta.value = URGE_DEFAULT;
+        updateUrgePreview();
       }
     });
   };
@@ -734,18 +841,18 @@
       '<div class="abc-tracker__mask"></div>' +
       '<div class="abc-tracker__panel" role="dialog" aria-label="进度跟踪">' +
       '  <div class="abc-tracker__head">' +
-      '    <span class="abc-tracker__logo">⏱</span>' +
+      '    <span class="abc-tracker__logo"><i class="el-icon-timer"></i></span>' +
       '    <span class="abc-tracker__title">进度跟踪</span>' +
       (MOCK ? '<span class="abc-tracker__mockbadge">模拟数据</span>' : '') +
-      '    <span class="abc-tracker__refresh" title="刷新当前页签">↻</span>' +
-      '    <span class="abc-tracker__settings" title="关注设置">⚙</span>' +
-      '    <span class="abc-tracker__close" title="关闭">✕</span>' +
+      '    <span class="abc-tracker__refresh" title="刷新当前页签"><i class="el-icon-refresh"></i></span>' +
+      '    <span class="abc-tracker__settings" title="关注设置"><i class="el-icon-setting"></i></span>' +
+      '    <span class="abc-tracker__close" title="关闭"><i class="el-icon-close"></i></span>' +
       '  </div>' +
       '  <div class="abc-tracker__tabs">' +
       Object.keys(ADAPTERS).map((key) =>
         '<button class="abc-tracker__tab" data-tab="' + key + '">' + ADAPTERS[key].label + '</button>'
       ).join('') +
-      '<button class="abc-tracker__tab abc-tracker__tab--watch" data-tab="watch">★ 关注</button>' +
+      '<button class="abc-tracker__tab abc-tracker__tab--watch" data-tab="watch"><i class="el-icon-star-on"></i> 关注</button>' +
       '  </div>' +
       Object.keys(ADAPTERS).map((key) =>
         '<div class="abc-tracker__pane" data-pane="' + key + '">' +
@@ -776,7 +883,7 @@
       const act = btn.dataset.act;
       if (act === 'copy') {
         const text = btn.dataset.copy || '';
-        const done = () => { btn.textContent = '✓ 已复制'; setTimeout(() => { btn.textContent = '📋 催办话术'; }, 1500); };
+        const done = () => { btn.innerHTML = '<i class="el-icon-check"></i> 已复制'; setTimeout(() => { btn.innerHTML = '<i class="el-icon-document-copy"></i> 催办话术'; }, 1500); };
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
         } else fallbackCopy(text, done);
@@ -802,7 +909,7 @@
         Watch.toggle(prjid, proj, flow, nodes).then(() => {
           const wasOn = btn.classList.contains('is-on');
           btn.classList.toggle('is-on', !wasOn);
-          btn.textContent = wasOn ? '☆ 关注' : '★ 已关注';
+          btn.innerHTML = wasOn ? '<i class="el-icon-star-off"></i> 关注' : '<i class="el-icon-star-on"></i> 已关注';
           updateWatchTabLabel();
           if (activeTab === 'watch') loadTab('watch', false); // 取消关注后刷新关注视图
         });
@@ -826,8 +933,8 @@
     build();
     root.classList.add('show');
     setTabActiveUI(activeTab);
-    // 先加载关注数据（星标状态/页签徽标依赖），再刷新当前页签
-    Watch.get().then(() => {
+    // 先加载关注数据（星标状态/页签徽标依赖）与话术模板，再刷新当前页签
+    Promise.all([Watch.get(), Urge.get().then((t) => { urgeText = t; })]).then(() => {
       updateWatchTabLabel();
       consumeWatchSummary(); // 被动层：展示轮询期间的变化并清零角标
       consumeWatchFocus();   // 通知点击带入的定位（如有）
@@ -843,7 +950,7 @@
     const btn = root.querySelector('.abc-tracker__tab--watch');
     if (!btn) return;
     const n = Watch.watchedCount();
-    btn.textContent = '★ 关注' + (n ? '(' + n + ')' : '');
+    btn.innerHTML = '<i class="el-icon-star-on"></i> 关注' + (n ? '(' + n + ')' : '');
   };
 
   const paneEl = (key) => root.querySelector('.abc-tracker__pane[data-pane="' + key + '"]');
@@ -883,7 +990,7 @@
         '  <div class="abc-tracker__item-main">' +
         '    <div class="abc-tracker__proj">' + esc(r.projname) + (r.projectno ? ' · ' + esc(r.projectno) : '') + '</div>' +
         '    <div class="abc-tracker__flow">' + esc(f.flowName) + '</div>' +
-        '    <div class="abc-tracker__failed-note">⚠ 流程图解析失败（ITA 可能已改版），请打开流程图自查</div>' +
+        '    <div class="abc-tracker__failed-note"><i class="el-icon-warning"></i> 流程图解析失败（ITA 可能已改版），请打开流程图自查</div>' +
         '  </div>' +
         '  <div class="abc-tracker__actions"><button class="abc-tracker__btn" data-act="open" data-proc="' + esc(f.idProc) + '">流程图 ↗</button></div>' +
         '</div>';
@@ -906,8 +1013,11 @@
     f.nodes.forEach((n) => n.rows.forEach((x) => {
       if (!worst || (x.waitMs || 0) > (worst.row.waitMs || 0)) worst = { node: n.node, row: x };
     }));
-    const copyText = '【催办】' + r.projname + '「' + f.flowName + '」当前环节「' + worst.node +
-      '」待 ' + worst.row.person + ' 处理（已等待 ' + fmtWait(maxWait) + '），请及时处理。';
+    // 催办话术取等待最久的卡点（最需要催的一处，与条目上的最长等待一致）；
+    // 文案来自 ⚙ 设置的可配置模板（占位符 {项目}{流程}{环节}{处理人}{等待}）
+    const copyText = renderUrge(urgeText, {
+      proj: r.projname, flow: f.flowName, node: worst.node, person: worst.row.person, wait: fmtWait(maxWait),
+    });
     const watched = Watch.isWatched(r.prjid, f.flowName);
     return '<div class="abc-tracker__item">' +
       '  <div class="abc-tracker__item-main">' +
@@ -919,11 +1029,11 @@
       '<button class="abc-tracker__btn abc-tracker__btn--star' + (watched ? ' is-on' : '') +
       '" data-act="watch-toggle" data-prjid="' + esc(r.prjid) + '" data-proj="' + esc(r.projname) +
       '" data-flow="' + esc(f.flowName) + '" data-proc="' + esc(f.idProc) + '" title="关注该流程：有变动时通知">' +
-      (watched ? '★ 已关注' : '☆ 关注') + '</button>' +
+      (watched ? '<i class="el-icon-star-on"></i> 已关注' : '<i class="el-icon-star-off"></i> 关注') + '</button>' +
       (r.pm
-        ? '<button class="abc-tracker__btn abc-tracker__btn--primary" data-act="teams" data-clurl="' + esc(r.pm.url) + '">💬 项目经理·' + esc(r.pm.name) + '</button>'
+        ? '<button class="abc-tracker__btn abc-tracker__btn--primary" data-act="teams" data-clurl="' + esc(r.pm.url) + '"><i class="el-icon-chat-dot-round"></i> 项目经理·' + esc(r.pm.name) + '</button>'
         : '') +
-      '<button class="abc-tracker__btn" data-act="copy" data-copy="' + esc(copyText) + '">📋 催办话术</button>' +
+      '<button class="abc-tracker__btn" data-act="copy" data-copy="' + esc(copyText) + '"><i class="el-icon-document-copy"></i> 催办话术</button>' +
       '<button class="abc-tracker__btn" data-act="open" data-proc="' + esc(f.idProc) + '">流程图 ↗</button>' +
       '  </div>' +
       '</div>';
@@ -932,7 +1042,7 @@
   // 渐进渲染：清单到位铺占位行；单项目完成即移除占位、条目插到列表顶部
   const onListArrive = (key, projects) => {
     listEl(key).innerHTML = projects.map((p) =>
-      '<div class="abc-tracker__pending" data-prjid="' + esc(p.prjid) + '">⏳ ' +
+      '<div class="abc-tracker__pending" data-prjid="' + esc(p.prjid) + '"><i class="el-icon-time"></i> ' +
       esc(p.projname || p.prjid) + ' · 分析中…</div>').join('');
   };
 
@@ -994,8 +1104,8 @@
           '<div class="abc-tracker__empty">当前没有你管理的项目——仅项目经理、运维负责人会有</div>');
       } else if (!stuckFlows && !results.some((r) => r.flows.some((f) => f.failed))) {
         list.insertAdjacentHTML('afterbegin', allFlows
-          ? '<div class="abc-tracker__empty">所有运行中流程都没有卡点 🎉</div>'
-          : '<div class="abc-tracker__empty">当前没有运行中的流程 🎉</div>');
+          ? '<div class="abc-tracker__empty"><i class="el-icon-circle-check"></i> 所有运行中流程都没有卡点</div>'
+          : '<div class="abc-tracker__empty">当前没有运行中的流程</div>');
       }
       tabStates[key] = { done: true };
     } catch (e) {

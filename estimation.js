@@ -3271,8 +3271,8 @@ window.__newEstimationApp({
     aiUrlStatusLabel() {
       const s = this.state.aiUrlStatus
       if (s === 'testing') return '正在测试…'
-      if (s === 'ok') return '✓ 已连接'
-      if (s === 'err') return '✗ 未连接'
+      if (s === 'ok') return '已连接'
+      if (s === 'err') return '未连接'
       return '未测试'
     },
     aiUrlStatusClass() {
@@ -4483,7 +4483,7 @@ window.__newEstimationApp({
         if (available) {
           this.state.aiUrlStatus = 'ok'
           this.aiUrlTested = true
-          this.aiCheckBanner = { text: 'AI 辅助检查已就绪 ✓', type: 'ok' }
+          this.aiCheckBanner = { text: 'AI 辅助检查已就绪', type: 'ok' }
         } else {
           this.state.aiUrlStatus = 'err'
           this.aiUrlTested = true
@@ -4601,7 +4601,7 @@ window.__newEstimationApp({
       if (this._phraseTimer) clearInterval(this._phraseTimer)
       // 进入思考阶段
       this.aiThinkingPhase = 'thinking'
-      this.aiAnalysisLog = '⏳'
+      this.aiAnalysisLog = '等待 AI 分析…'
       this.aiSseEventCount = 0
       this.currentThinkingPhrase = this._pickThinkingPhrase()
       this.aiThinkingText = this.currentThinkingPhrase
@@ -4771,7 +4771,7 @@ window.__newEstimationApp({
           this.showUpdateDialog = true
         } else if (!silent) {
           // 手动检查且已是最新版本时，toast 提示
-          this.setStatus('✅ 已是最新版本 v' + this.currentVersion, 'ok')
+          this.setStatus('已是最新版本 v' + this.currentVersion, 'ok')
         }
       } catch (e) {
         if (!silent) {

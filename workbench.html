@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>项目工作台</title>
+  <title>项目文档自查 + 入库</title>
   <link rel="stylesheet" href="vendor/icons.css">
   <link rel="stylesheet" href="common/page.css">
   <link rel="stylesheet" href="common/bg.css">
@@ -215,7 +215,9 @@
     .drawer-checklist .ck-group b { display: block; font-size: 12.5px; color: #1b2e1f; margin-bottom: 4px; }
     .drawer-checklist .ck-group li { font-size: 12px; color: #5a6b5c; line-height: 1.7;
       list-style: none; padding-left: 20px; position: relative; }
-    .drawer-checklist .ck-group li::before { content: "☐"; position: absolute; left: 2px; color: #43a047; }
+    .drawer-checklist .ck-group li::before { content: ""; position: absolute; left: 2px; top: 50%;
+      transform: translateY(-50%); width: 9px; height: 9px; box-sizing: border-box;
+      border: 1.5px solid #43a047; border-radius: 2px; }
     .drawer-foot { padding: 10px 20px; font-size: 11.5px; color: #9aa89c; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
 
     /* 右侧固定把手（形式同估算检查工具的规则表按钮） */
@@ -240,20 +242,20 @@
   <header class="pg-header">
     <span class="pg-mark">项</span>
     <div class="pg-titles">
-      <div class="pg-name">项目工作台</div>
-      <div class="pg-sub">项目管理工具箱 · 选定项目后一次完成文档自查与按产生阶段归档下载</div>
+      <div class="pg-name">项目文档自查 + 入库</div>
+      <div class="pg-sub">项目管理工具箱 · 选定项目后：① 齐套自查 → ② 按阶段归档</div>
     </div>
     <div class="pg-actions">
       <span class="pg-pill" id="svcPill"><span class="dot" id="svcDot"></span><span id="svcText">检查服务…</span></span>
       <div class="help-wrap">
         <span class="help-icon">?</span>
         <div class="help-tip">
-          <strong>项目工作台使用说明</strong>
+          <strong>项目文档自查 + 入库 使用说明</strong>
           <ul>
-            <li><b>① 查项目</b>：输入 ITA 项目名称，点击选择。也可从 ita.abc 页面的「项目工作台 / 归档下载」直接带项目进入。</li>
+            <li><b>① 查项目</b>：输入 ITA 项目名称，点击选择。也可从 ita.abc 页面的「自查·入库 / 按阶段归档」直接带项目进入。</li>
             <li><b>② 文件台账</b>：项目文档列表，自动识别文档类型并按《武研项目文档入库清单》匹配归档阶段（相似度≥60%，可点击「归档阶段」手动调整，橙色「推荐」一键采纳）。</li>
-            <li><b>③ 两类动作</b>：「检查勾选文档」调用本地后端自查业务需求书 / 工作产品清单 / 系统设计说明书；「归档下载勾选文件」按归档阶段建文件夹落盘，重名自动加上传时间区分。</li>
-            <li><b>检查前</b>：需启动本地后端（「安装后端.bat」或双击「项目管理工具后端.exe」）。检查结果自动存入检查历史。</li>
+            <li><b>③ 两类动作</b>：「① 齐套自查」调用本地后端自查业务需求书 / 工作产品清单 / 系统设计说明书；「② 按阶段归档」按归档阶段建文件夹落盘，重名自动加上传时间区分。</li>
+            <li><b>自查前</b>：需启动本地后端（「安装后端.bat」或双击「项目管理工具后端.exe」）。自查结果自动存入检查历史。</li>
           </ul>
         </div>
       </div>
@@ -263,8 +265,8 @@
   <div class="toolbar">
     <input type="text" id="projInput" placeholder="请输入 ITA 项目名称">
     <button class="btn" id="searchBtn"><i class="el-icon-search"></i> 查询项目</button>
-    <button class="btn" id="checkBtn" disabled><i class="el-icon-document-checked"></i> 检查勾选文档</button>
-    <button class="btn" id="downloadBtn" disabled><i class="el-icon-folder-opened"></i> 归档下载勾选文件</button>
+    <button class="btn" id="checkBtn" disabled title="勾选文档后对照《项目文档自查方法》检查（需本地后端）"><i class="el-icon-document-checked"></i> ① 齐套自查</button>
+    <button class="btn" id="downloadBtn" disabled title="勾选文件按归档阶段建文件夹落盘"><i class="el-icon-folder-opened"></i> ② 按阶段归档</button>
     <span class="proj-info" id="projInfo"></span>
     <span class="preview-wrap">
       <button class="btn ghost" id="previewBtn" disabled><i class="el-icon-view"></i> 归档预览</button>
@@ -319,13 +321,14 @@
     <div class="drawer-head">
       <span class="drawer-title">项目文档自查方法</span>
       <span class="drawer-ver" id="drawerVer">202609</span>
-      <span class="drawer-close" id="drawerClose" title="关闭">✕</span>
+      <span class="drawer-close" id="drawerClose" title="关闭"><i class="el-icon-close"></i></span>
     </div>
     <div class="drawer-body" id="drawerBody"><div class="drawer-intro">加载中…</div></div>
     <div class="drawer-foot" id="drawerFoot"></div>
   </div>
 
   <script src="common/store.js"></script>
+  <script src="mock-data/workbench-mock-data.js"></script>
   <script src="workbench.mock.js"></script>
   <script src="workbench.js"></script>
 </body>

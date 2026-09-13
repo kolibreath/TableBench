@@ -40,18 +40,18 @@
                 <div class="changelog-item">
                   <span class="changelog-version">v2.1.0.1</span>
                   <ul class="changelog-list">
-                    <li>🎨 背景动画重构：Canvas + OffscreenCanvas Worker 独立线程渲染，SSE 高负载时动画零卡顿；支持旧浏览器自动回退主线程模式</li>
-                    <li>🔧 修复 AI 多分块结果合并：分块 >100 条时后续分块结果不再覆盖前序，累积合并后完整展示</li>
-                    <li>🔧 修复 inBoth 去重逻辑：同章节不同功能点的多行数据全部保留，不再错误丢弃</li>
-                    <li>🔧 修复批次名映射：支持"批次N"格式识别，多批次场景下 AI 缓存匹配不再失败</li>
-                    <li>✨ AI 节点异常检测：SSE 返回异常时收集 node_id/node_title/exception，比对页签红色卡片展示，错误通知提醒</li>
-                    <li>📝 摘要区文案优化：移除"50%"技术阈值描述，改为"AI检测存在不匹配风险"/"均已通过AI检测"</li>
-                    <li>📝 结果摘要新增审核统计：展示审核总数、匹配/不匹配数量、多估/漏估明细</li>
-                    <li>📝 不匹配批次列表改为换行展示，移除低置信度表格，标签右上角数字改为审核功能点总数</li>
-                    <li>🎨 色调切换优化：冷暖色调渐变过渡（逐帧刷新），消除瞬间切换的卡顿感</li>
+                    <li><i class="el-icon-picture-outline"></i> 背景动画重构：Canvas + OffscreenCanvas Worker 独立线程渲染，SSE 高负载时动画零卡顿；支持旧浏览器自动回退主线程模式</li>
+                    <li><i class="el-icon-setting"></i> 修复 AI 多分块结果合并：分块 >100 条时后续分块结果不再覆盖前序，累积合并后完整展示</li>
+                    <li><i class="el-icon-setting"></i> 修复 inBoth 去重逻辑：同章节不同功能点的多行数据全部保留，不再错误丢弃</li>
+                    <li><i class="el-icon-setting"></i> 修复批次名映射：支持"批次N"格式识别，多批次场景下 AI 缓存匹配不再失败</li>
+                    <li><i class="el-icon-magic-stick"></i> AI 节点异常检测：SSE 返回异常时收集 node_id/node_title/exception，比对页签红色卡片展示，错误通知提醒</li>
+                    <li><i class="el-icon-edit"></i> 摘要区文案优化：移除"50%"技术阈值描述，改为"AI检测存在不匹配风险"/"均已通过AI检测"</li>
+                    <li><i class="el-icon-edit"></i> 结果摘要新增审核统计：展示审核总数、匹配/不匹配数量、多估/漏估明细</li>
+                    <li><i class="el-icon-edit"></i> 不匹配批次列表改为换行展示，移除低置信度表格，标签右上角数字改为审核功能点总数</li>
+                    <li><i class="el-icon-picture-outline"></i> 色调切换优化：冷暖色调渐变过渡（逐帧刷新），消除瞬间切换的卡顿感</li>
                     <li>⚡ SSE 日志累积优化：数组 push + 最终 join 替代 O(n²) 字符串拼接</li>
                     <li>⚡ 圆角矩形 Canvas polyfill：兼容旧版浏览器 roundRect API</li>
-                    <li>🔧 新增全局控制台开关 DEBUG_LOG，默认关闭，按需开启排查问题</li>
+                    <li><i class="el-icon-setting"></i> 新增全局控制台开关 DEBUG_LOG，默认关闭，按需开启排查问题</li>
                   </ul>
                 </div>
               </div>
@@ -362,7 +362,7 @@
                           <div v-else :key="'normal-'+idx"
                             :class="line.source === 'ai' ? 'violation-desc--ai' : (line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest')">
                             <span v-if="line.source === 'ai'" class="ai-badge">AI</span>
-                            <span v-if="line.source === 'ai'" class="ai-icon">⚡</span>
+                            <span v-if="line.source === 'ai'" class="ai-icon"><i class="el-icon-lightning"></i></span>
                             <span v-else class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
                             {{ line.text }}
                             <div v-if="line.source === 'ai' && line.reason" class="ai-reason">
@@ -388,7 +388,7 @@
                   <div class="summary-kpi-card">
                     <div class="summary-kpi-card__label">AI 辅助检查</div>
                     <div class="summary-kpi-card__value" :class="aiEnabledForViolations ? 'summary-kpi-card__value--on' : 'summary-kpi-card__value--off'">
-                      {{ aiEnabledForViolations ? '✓ 已开启' : '✗ 未开启' }}
+                      {{ aiEnabledForViolations ? '已开启' : '未开启' }}
                     </div>
                   </div>
                   <div class="summary-kpi-card">
@@ -550,7 +550,7 @@
                         <div v-else :key="'normal-'+idx"
                           :class="line.source === 'ai' ? 'violation-desc--ai' : (line.type === '强制' ? 'violation-desc--must' : 'violation-desc--suggest')">
                           <span v-if="line.source === 'ai'" class="ai-badge">AI</span>
-                          <span v-if="line.source === 'ai'" class="ai-icon">⚡</span>
+                          <span v-if="line.source === 'ai'" class="ai-icon"><i class="el-icon-lightning"></i></span>
                           <span v-else class="violation-icon">{{ line.type === '强制' ? '!' : '?' }}</span>
                           {{ line.text }}
                           <div v-if="line.source === 'ai' && line.reason" class="ai-reason">
@@ -839,7 +839,7 @@
       <!-- ══════════════════════════════════════════════════ -->
 
       <!-- 发现新版本 -->
-      <el-dialog title="🔔 发现新版本" :visible.sync="showUpdateDialog" width="460px" :modal="false" :close-on-click-modal="false">
+      <el-dialog title="发现新版本" :visible.sync="showUpdateDialog" width="460px" :modal="false" :close-on-click-modal="false">
         <div class="update-dialog__info">
           <div class="update-dialog__row">
             <span class="update-dialog__label">当前版本：</span>
@@ -855,7 +855,7 @@
           </div>
         </div>
         <div class="update-dialog__changelog" v-if="updateChangelog.length">
-          <div class="update-dialog__changelog-title">📋 更新内容：</div>
+          <div class="update-dialog__changelog-title"><i class="el-icon-document-copy"></i> 更新内容：</div>
           <ul class="update-dialog__changelog-list">
             <li v-for="(item, idx) in updateChangelog" :key="idx">{{ item }}</li>
           </ul>
@@ -878,12 +878,12 @@
         <div class="update-progress-dialog__detail" v-if="updateDetailMessage">{{ updateDetailMessage }}</div>
         <div class="update-progress-dialog__hint" v-if="updatePhase !== 'restarting'">请勿关闭此窗口</div>
         <div class="update-progress-dialog__hint update-progress-dialog__hint--restart" v-if="updatePhase === 'restarting'">
-          🔄 {{ updateStageMessage }}
+          <i class="el-icon-loading"></i> {{ updateStageMessage }}
         </div>
       </el-dialog>
 
       <!-- 更新完成 -->
-      <el-dialog title="✅ 更新完成！" :visible.sync="showUpdateComplete" width="420px" :modal="false" :close-on-click-modal="false">
+      <el-dialog title="更新完成！" :visible.sync="showUpdateComplete" width="420px" :modal="false" :close-on-click-modal="false">
         <div class="update-dialog__info">
           <p>已更新至 <strong>v{{ latestVersion || currentVersion }}</strong></p>
           <p class="update-dialog__hint">请使用 Ctrl+F5 强制刷新以应用最新版本</p>
@@ -895,7 +895,7 @@
       </el-dialog>
 
       <!-- 更新失败 -->
-      <el-dialog title="❌ 更新失败" :visible.sync="showUpdateError" width="460px" :modal="false" :close-on-click-modal="false">
+      <el-dialog title="更新失败" :visible.sync="showUpdateError" width="460px" :modal="false" :close-on-click-modal="false">
         <div class="update-dialog__info">
           <p class="update-dialog__error-msg">{{ updateErrorMessage || '更新过程中发生未知错误' }}</p>
           <div class="update-dialog__error-hint" v-if="updateErrorCode === 'CHECKSUM_MISMATCH'">

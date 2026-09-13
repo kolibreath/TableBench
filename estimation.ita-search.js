@@ -327,8 +327,8 @@
         batchCell = '<span class="ita-none">—</span>';
       }
       var meta = [];
-      if (f.userName || f.idPsn) meta.push('👤 上传人 ' + esc(f.userName || f.idPsn));
-      if (f.timeUpl) meta.push('🕐 ' + fmtTime(f.timeUpl));
+      if (f.userName || f.idPsn) meta.push('<i class="el-icon-user"></i> 上传人 ' + esc(f.userName || f.idPsn));
+      if (f.timeUpl) meta.push('<i class="el-icon-time"></i> ' + fmtTime(f.timeUpl));
       var metaRow = meta.length ? '<div class="ita-osp__fmeta">' + meta.join(' · ') + '</div>' : '';
       var tag = f.isLatestEst ? '<span class="ita-osp__ftag">最新版</span>' : '';
       return '<tr>' +
@@ -401,7 +401,7 @@
       warn.style.display = '';
       warn.innerHTML = merged.map(function (b) {
         var names = byBatch[b];
-        return '<div>⚠ ' + esc(b) + ' 合并了 ' + names.length + ' 份需求说明书：' +
+        return '<div><i class="el-icon-warning"></i> ' + esc(b) + ' 合并了 ' + names.length + ' 份需求说明书：' +
           esc(names.join('、')) + '（加载后将按 ' + esc(b) + ' 合并比对）</div>';
       }).join('');
     } else {

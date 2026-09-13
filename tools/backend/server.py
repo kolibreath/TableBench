@@ -25,7 +25,6 @@ import parser
 import version_manager
 import doc_engine
 import storage_service
-import workhours_service
 
 # ── 自动清理配置 ─────────────────────────────────────────────────
 CLEANUP_INTERVAL_SECONDS = 300       # 清理间隔：5 分钟
@@ -54,12 +53,10 @@ def _get_temp_session_dir() -> str:
 
 app = Flask(__name__)
 
-# ── 模块化路由（归属分离：检查历史 / 工时后端各自独立文件，避免交叉修改） ──
+# ── 模块化路由（归属分离：检查历史独立文件，避免交叉修改） ──
 from history_api import bp as history_api_bp  # noqa: E402
-from workhours_api import bp as workhours_api_bp  # noqa: E402
 
 app.register_blueprint(history_api_bp)
-app.register_blueprint(workhours_api_bp)
 
 _batch_docs: dict[str, dict] = {}
 
@@ -268,7 +265,7 @@ def api_parse_doc_com():
                 pass
 
 
-# ── 检查历史 / 工时填报：路由已拆分至独立模块（模块归属见 history_api.py / workhours_api.py） ──
+# ── 检查历史：路由已拆分至独立模块（模块归属见 history_api.py） ──
 
 # ── 合规检查数据收集（JSONL 按月落盘） ────────────────────────
 

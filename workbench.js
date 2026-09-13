@@ -1,7 +1,7 @@
-// 项目工作台页面脚本（V3.0：合并项目自查 + 项目入库）
+// 项目文档自查 + 入库 页面脚本（V3.0：合并项目自查 + 项目入库）
 // 流程：搜索 ITA 项目 → 选定项目 → 文件台账（一次搜索，两类动作）
-//      ① 检查勾选文档：带 Cookie 下载 → /api/check_upload → 行内状态与明细 → 检查历史 + 数据收集
-//      ② 归档下载勾选文件：按《武研项目文档入库清单》匹配产生阶段 → showDirectoryPicker 建文件夹落盘
+//      ① 齐套自查（勾选文档）：带 Cookie 下载 → /api/check_upload → 行内状态与明细 → 检查历史 + 数据收集
+//      ② 按阶段归档（勾选文件）：按《武研项目文档入库清单》匹配产生阶段 → showDirectoryPicker 建文件夹落盘
 
 const itaApi = {
   search: 'http://ita.abc/ita/project/searchProj2022.action',
@@ -573,10 +573,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const checkBadge = (st) => {
     if (!st || st.status === 'idle') return '<span class="check-badge idle">—</span>';
     if (st.status === 'running') return '<span class="check-badge running">检查中…</span>';
-    if (st.status === 'pass') return '<span class="check-badge pass">✓ 通过</span>';
+    if (st.status === 'pass') return '<span class="check-badge pass"><i class="el-icon-check"></i> 通过</span>';
     if (st.status === 'skip') return '<span class="check-badge idle">跳过</span>';
     if (st.status === 'error') return `<span class="check-badge error" title="${esc(st.error || '')}">失败</span>`;
-    return `<span class="check-badge fail">✗ 不通过 ${st.failCount} 项</span>`;
+    return `<span class="check-badge fail"><i class="el-icon-close"></i> 不通过 ${st.failCount} 项</span>`;
   };
 
   const renderTable = () => {
@@ -721,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
         (groups[stage] = groups[stage] || []).push(f.name);
       });
       previewBox.innerHTML = Object.keys(groups).map((stage) => `
-        <h5>📁 ${esc(stage)}（${groups[stage].length}）</h5>
+        <h5><i class="el-icon-folder-opened"></i> ${esc(stage)}（${groups[stage].length}）</h5>
         ${groups[stage].map((n) => `<div class="pf">${esc(n)}</div>`).join('')}
       `).join('');
     }
@@ -878,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await writable.close();
         successCount++;
       } catch (e) {
-        console.error('归档下载失败:', e);
+        console.error('按阶段归档失败:', e);
         failCount++;
       }
     }

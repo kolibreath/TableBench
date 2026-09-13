@@ -18,3 +18,6 @@ build/
 *.spec
 *.7z
 venv/
+
+# ── Python 虚拟环境（点前缀变体） ──
+.venv/

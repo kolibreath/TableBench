@@ -42,6 +42,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     pollWatch().finally(() => sendResponse({ ok: true }));
     return true;
   }
+  // 批量下载：downloads API 队列（并发 3，单文件失败重试一次），不受页面多下载拦截；
+  // 下载走浏览器共享 Cookie，ITA 会话有效即可。文件名由 ITA 响应头或 filename 建议值生成
+  if (message && message.type === 'DOWNLOAD_FILES' && Array.isArray(message.items)) {
+    const items = message.items.slice();
+    const results = { ok: true, done: 0, failed: 0, total: items.length };
+    const worker = async () => {
+      while (items.length) {
+        const it = items.shift();
+        let ok = false;
+        for (let attempt = 0; attempt < 2 && !ok; attempt++) {
+          try {
+            await chrome.downloads.download({
+              url: it.url,
+              filename: it.filename || undefined,
+              conflictAction: 'uniquify',
+            });
+            ok = true;
+          } catch (e) {
+            if (attempt === 0) await new Promise((r) => setTimeout(r, 800));
+          }
+        }
+        ok ? results.done++ : results.failed++;
+      }
+    };
+    (async () => {
+      await Promise.all([worker(), worker(), worker()]);
+      sendResponse(results);
+    })();
+    return true;
+  }
   return false;
 });
 

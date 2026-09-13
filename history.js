@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 是否开启 AI 检查：aiUrl 非空即视为开启（检查时的 AI 后端配置）
   const aiTag = (r) => (r.aiUrl
-    ? '<span class="type-tag type-ai-on">✓ 开启</span>'
+    ? '<span class="type-tag type-ai-on"><i class="el-icon-check"></i> 开启</span>'
     : '<span class="type-tag type-ai-off">—</span>');
 
   // 检查对象：规模估算书 / 需求说明书（含批次），按 files[].role 汇总
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const lines = items.map((v) => {
         const cls = v.source === 'ai' ? 'badge-skip' : (v.type === '强制' ? 'badge-fail' : 'badge-pass');
         const tag = v.source === 'ai' ? '[AI] ' : (v.ruleId ? '[规则' + esc(v.ruleId) + '] ' : '');
-        return `<div><span class="${cls}">${v.type === '强制' ? '✗' : '?'}</span> ${tag}${esc(v.message || v.text || '')}</div>` +
+        return `<div><span class="${cls}">${v.type === '强制' ? '<i class="el-icon-close"></i>' : '?'}</span> ${tag}${esc(v.message || v.text || '')}</div>` +
           (v.reason ? `<div class="ai-reason">AI 分析原因：${esc(v.reason)}</div>` : '');
       }).join('');
       return `<tr><td style="white-space:nowrap">${esc(items[0].sheet || '?')}</td><td>${esc(items[0].row || '?')}</td><td>${lines}</td></tr>`;

@@ -64,11 +64,17 @@ testBtn.addEventListener('click', async () => {
     // 测试注入打上标记：跳转估算检查页时自动带 ?itaMock=1（外网调试沙箱）
     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['vendor/icons.css', 'content.css'] });
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: () => { window.__abcTestInject = true; } });
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js', 'content.tracker.js', 'content.workhours.js'] });
-    testBtn.textContent = '✓ 已注入，看页面右下角悬浮球';
+    // tracker-watch.js 为卡点解析共享核心（manifest 在 ita.abc 上先行加载；测试注入页须补上，
+    // 否则 parseStuckNodes 缺失、卡点恒为空）；mock-data 为外部模拟数据集（项目查询面板
+    // 在非 ita.abc 页面自动走 workbench-mock-data 数据集，进度跟踪走 tracker-mock-data）
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ['tracker-watch.js', 'mock-data/tracker-mock-data.js', 'mock-data/workbench-mock-data.js', 'content.js', 'content.tracker.js', 'content.workhours.js'],
+    });
+    testBtn.innerHTML = '<i class="el-icon-check"></i> 已注入，看页面右下角悬浮球';
     setTimeout(() => window.close(), 900);
   } catch (e) {
-    testBtn.textContent = '✕ ' + (e.message || e);
+    testBtn.innerHTML = '<i class="el-icon-close"></i> ' + (e.message || e);
     testBtn.disabled = false;
   }
 });

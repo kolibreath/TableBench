@@ -295,8 +295,8 @@
       '    <span class="abc-wh__logo">时</span>' +
       '    <span class="abc-wh__title">工时填报检查</span>' +
       (MOCK ? '<span class="abc-wh__mockbadge">模拟数据</span>' : '') +
-      '    <span class="abc-wh__refresh" title="刷新">↻</span>' +
-      '    <span class="abc-wh__close" title="关闭">✕</span>' +
+      '    <span class="abc-wh__refresh" title="刷新"><i class="el-icon-refresh"></i></span>' +
+      '    <span class="abc-wh__close" title="关闭"><i class="el-icon-close"></i></span>' +
       '  </div>' +
       '  <div class="abc-wh__pickrow">' +
       '    <span class="abc-wh__label">项目</span>' +
@@ -316,8 +316,8 @@
       '  <div class="abc-wh__foot">' +
       '    <span class="abc-wh__pickinfo"></span>' +
       '    <span class="abc-wh__footbtns">' +
-      '      <button class="abc-wh__btn" data-act="mail" disabled>📋 复制邮箱</button>' +
-      '      <button class="abc-wh__btn" data-act="mailtext" disabled>📄 复制邮件文本</button>' +
+      '      <button class="abc-wh__btn" data-act="mail" disabled><i class="el-icon-document-copy"></i> 复制邮箱</button>' +
+      '      <button class="abc-wh__btn" data-act="mailtext" disabled><i class="el-icon-document"></i> 复制邮件文本</button>' +
       '    </span>' +
       '  </div>' +
       '  <div class="abc-wh__status" style="display:none"></div>' +
@@ -410,7 +410,7 @@
       setStatus('获取到 ' + projects.length + ' 个有工时计划的项目（数据年份 ' + year + ' 及上年），按完成率升序排列。', false);
     } catch (e) {
       select.innerHTML = '<option value="">（加载失败）</option>';
-      renderTable('无法获取工时数据：' + (e.message || e) + '。请确认已登录 ita.abc，点右上角 ↻ 重试。');
+      renderTable('无法获取工时数据：' + (e.message || e) + '。请确认已登录 ita.abc，点右上角「刷新」重试。');
       setStatus('无法获取工时数据：' + (e.message || e) + '。请确认已登录 ita.abc。', true);
     } finally {
       busy = false;

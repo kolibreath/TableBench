@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "项目管理工具箱",
   "version": "3.1.0",
-  "description": "项目工作台（文档检查 + 归档下载）、规模估算书合规检查、检查历史",
+  "description": "项目文档自查与入库（齐套检查 + 按阶段归档）、规模估算书合规检查、检查历史",
   "key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAskrAOA8zCsGOiwpkYj8a\nDCiD7Y+cmYDjokXAI2Q59VT4SilJr0NbzWObisuuw5euNj87RQ7pTMdmvwDJS91O\nAic9G/VjJr+cxECog8JRAHU2LBtZqxBfvie5rokT9JKUWBW/ce3H9FEAm7XKdUSD\nFkk96fKEVK0K4UfBFPA/TkSvte3RrED7OD5RWb2ppI4z20ASHxV9PBSFLQkjO5ft\nu5d+mdMWuSTh2R3TE60Sqw3d631DogXM6uNTokaFc8PAFJjFWFxVuVf7wfY9E7IZ\n1ak94KxNnw5uDGOx7ykvuQHDSD9/pKXnaEs8rioPU9D02X8AwKZDivpMA68pdWmP\nUQIDAQAB\n-----END PUBLIC KEY-----",
   "permissions": [
     "activeTab",
@@ -11,7 +11,8 @@
     "storage",
     "nativeMessaging",
     "alarms",
-    "notifications"
+    "notifications",
+    "downloads"
   ],
   "host_permissions": [
     "http://ita.abc/*",

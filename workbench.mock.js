@@ -13,6 +13,9 @@
  *   P20260011 常规类「新一代账务核心系统升级」——3 份检查对象齐全 + 要求入库 7 件全 + 大量按需文档
  *   P20260012 敏捷类「手机银行体验优化」——无系统设计说明书（敏捷差异）、fileType 怪异（分类进「其他」演示手动调整）
  *   P20260013 快捷类「渠道消息推送快捷改造」——「如有」档位文档部分存在，演示推荐入库缺项提示
+ *
+ * 外部数据集：workbench.html 先加载 mock-data/workbench-mock-data.js 时，
+ * 其 projects/files 追加到上述内置场景之后（见下方 EXT 合并逻辑）。
  */
 (function () {
   'use strict';
@@ -24,7 +27,7 @@
   }
   if (!enabled()) return;
 
-  var PROJECTS = [
+  var BUILTIN_PROJECTS = [
     { prjid: 'P20260011', projname: '新一代账务核心系统升级', projectno: 'XRK2026-011', projtype: '一般应用类（常规研发模式）', projMan: '张甲' },
     { prjid: 'P20260012', projname: '手机银行客户体验优化', projectno: 'XRK2026-012', projtype: '一般应用类（敏捷研发模式）', projMan: '李乙' },
     { prjid: 'P20260013', projname: '渠道消息推送快捷改造', projectno: 'XRK2026-013', projtype: '快捷类', projMan: '赵丙' },
@@ -38,7 +41,7 @@
     };
   }
 
-  var FILES = {
+  var BUILTIN_FILES = {
     // 场景1：常规类——3 份检查对象齐全 + 要求入库文档全 + 按需文档若干
     P20260011: [
       f('W-101', '新一代账务核心系统升级_业务需求说明书part1.docx', '业务需求说明书(需求分析)', '2026-07-01 09:00:00'),
@@ -70,6 +73,17 @@
       f('W-304', '渠道消息推送快捷改造_项目总体方案.docx', '项目总体方案', '2026-09-03 10:00:00', '吴庚'),
     ],
   };
+
+  // 外部数据集追加：workbench.html 在本文件之前加载 mock-data/workbench-mock-data.js 时，
+  // window.__abcWorkbenchMockData 的 projects/files 追加到内置场景之后（内置 3 个项目场景保留）
+  var EXT = window.__abcWorkbenchMockData || null;
+  var PROJECTS = BUILTIN_PROJECTS.concat((EXT && EXT.projects) || []);
+  var FILES = BUILTIN_FILES;
+  if (EXT && EXT.files) {
+    FILES = {};
+    Object.keys(BUILTIN_FILES).forEach(function (k) { FILES[k] = BUILTIN_FILES[k]; });
+    Object.keys(EXT.files).forEach(function (k) { FILES[k] = EXT.files[k]; });
+  }
 
   // idFile → 文件索引（下载接口只带 idFile，需反查）
   var IDMAP = {};
