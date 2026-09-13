@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 
 ENGINE_WPS_COM = "wps_com"
 ENGINE_PYPARSER = "pyparser"
@@ -28,19 +29,27 @@ ENGINE_PYPARSER = "pyparser"
 _engine_cache = None
 
 
+def _log(msg: str) -> None:
+    print(f"[doc_engine] {msg}", flush=True)
+
+
 def detect_engine() -> str:
-    """探测可用引擎：Windows + win32com + WPS → wps_com，否则 pyparser"""
+    """探测可用引擎：Windows + win32com + WPS → wps_com，否则 pyparser（探测结果记日志）"""
     global _engine_cache
     if _engine_cache:
         return _engine_cache
     engine = ENGINE_PYPARSER
-    if sys.platform == "win32":
+    if sys.platform != "win32":
+        reason = f"非 Windows 平台（{sys.platform}）"
+    else:
         try:
             import win32com.client  # noqa: F401
             engine = ENGINE_WPS_COM
-        except Exception:
-            engine = ENGINE_PYPARSER
+            reason = "win32com 可用，优先 WinCom（WPS COM）"
+        except Exception as e:
+            reason = f"win32com 不可用（{e}）"
     _engine_cache = engine
+    _log(f"引擎探测：{engine}（{reason}）")
     return engine
 
 
@@ -159,16 +168,27 @@ def P_re_subheading(s: str) -> bool:
 # ─────────────────────────────────────────────────────────────
 
 def extract(path: str) -> dict:
-    """按探测到的引擎解析文档；wps_com 失败时自动降级 pyparser"""
+    """按探测到的引擎解析文档；wps_com 失败时自动降级 pyparser（实际使用引擎全程记日志）"""
     path = os.path.abspath(path)
     if not os.path.isfile(path):
         raise FileNotFoundError(path)
 
     engine = detect_engine()
+    name = os.path.basename(path)
     if engine == ENGINE_WPS_COM:
+        _log(f"{name}: 使用 WinCom（WPS COM）解析…")
+        started = time.time()
         try:
-            return _extract_with_wps_com(path)
+            result = _extract_with_wps_com(path)
+            _log(f"{name}: WinCom 解析成功（耗时 {(time.time() - started) * 1000:.0f}ms，"
+                 f"标题 {len(result.get('headings', []))} 个）")
+            return result
         except Exception as e:
-            print(f"[doc_engine] WPS COM 解析失败，降级 pyparser: {e}")
+            _log(f"{name}: WinCom 解析失败，降级传统方案 pyparser（{type(e).__name__}: {e}）")
 
-    return _extract_with_pyparser(path)
+    _log(f"{name}: 使用传统方案 pyparser 解析…")
+    started = time.time()
+    result = _extract_with_pyparser(path)
+    _log(f"{name}: 传统方案解析成功（耗时 {(time.time() - started) * 1000:.0f}ms，"
+         f"正文 {len(result.get('fulltext', ''))} 字符）")
+    return result

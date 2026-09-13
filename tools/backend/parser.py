@@ -21,15 +21,23 @@ except ImportError:
     _HAS_OLEFILE = False
 
 
+def _log(msg: str) -> None:
+    print(f"[parser] {msg}", flush=True)
+
+
 def extract_text_from_wps(file_path: str) -> str:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"文件不存在: {file_path}")
 
+    name = os.path.basename(file_path)
     try:
         from docx import Document
         doc = Document(file_path)
-        return _extract_from_docx(doc)
-    except Exception:
+        text = _extract_from_docx(doc)
+        _log(f"{name}: python-docx 解析成功（{len(text)} 字符）")
+        return text
+    except Exception as e:
+        _log(f"{name}: python-docx 解析失败，转传统兜底（{type(e).__name__}: {e}）")
         return extract_text_fallback(file_path)
 
 
@@ -156,19 +164,24 @@ def extract_text_fallback(file_path: str) -> str:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"文件不存在: {file_path}")
 
+    name = os.path.basename(file_path)
     if _is_ole2(file_path):
         result = _extract_with_olefile(file_path)
         if result:
+            _log(f"{name}: 传统兜底 → OLE2/olefile 提取成功（{len(result)} 字符）")
             return result
         with open(file_path, "rb") as f:
             data = f.read()
-        return _extract_utf16le_text(data)
+        text = _extract_utf16le_text(data)
+        _log(f"{name}: 传统兜底 → OLE2 原始 UTF-16LE 暴力提取（{len(text)} 字符）")
+        return text
 
     nsmap = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
     paragraphs: list[str] = []
 
     with zipfile.ZipFile(file_path, "r") as zf:
         if "word/document.xml" not in zf.namelist():
+            _log(f"{name}: 传统兜底 → ZIP 中无 word/document.xml，提取结果为空")
             return ""
 
         with zf.open("word/document.xml") as xml_file:
@@ -182,7 +195,9 @@ def extract_text_fallback(file_path: str) -> str:
                         texts.append(t_elem.text)
                 paragraphs.append("".join(texts))
 
-    return "\n".join(paragraphs)
+    text = "\n".join(paragraphs)
+    _log(f"{name}: 传统兜底 → ZIP/XML（word/document.xml）提取成功（{len(text)} 字符）")
+    return text
 
 
 _CHAPTER_NAMES: list[str] = [
